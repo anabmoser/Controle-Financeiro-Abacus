@@ -1,0 +1,108 @@
+// Schema do Sistema de Controle de Compras para Restaurante
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/controle_compras_restaurante/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// Tabela de Categorias para organizar produtos
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(100)
+  color     String   @default("#3B82F6") @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  products      Product[]
+  purchaseItems PurchaseItem[]
+
+  @@map("categories")
+}
+
+// Tabela de Produtos - Catálogo de produtos do restaurante
+model Product {
+  id             String   @id @default(uuid())
+  name           String
+  normalizedName String   @map("normalized_name")
+  categoryId     String?  @map("category_id")
+  unit           String   @default("un") @db.VarChar(20)
+  brand          String?
+  description    String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  purchaseItems PurchaseItem[]
+
+  @@index([normalizedName])
+  @@map("products")
+}
+
+// Tabela de Compras - Registro de cada compra processada
+model Purchase {
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  supplierName    String    @map("supplier_name")
+  supplierCnpj    String?   @map("supplier_cnpj") @db.VarChar(18)
+  purchaseDate    DateTime  @map("purchase_date") @db.Timestamptz(6)
+  invoiceNumber   String?   @map("invoice_number") @db.VarChar(100)
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(10, 2)
+  paymentMethod   String?   @map("payment_method")
+  receiptUrl      String?   @map("receipt_url")
+  receiptFileName String?   @map("receipt_file_name")
+  processedAt     DateTime? @default(now()) @map("processed_at") @db.Timestamptz(6)
+  ocrConfidence   Decimal?  @map("ocr_confidence") @db.Decimal(3, 2)
+  status          String    @default("completed") @db.VarChar(20)
+
+  purchaseItems PurchaseItem[]
+  receipt       Receipt?
+
+  @@index([purchaseDate(sort: Desc)])
+  @@index([supplierName])
+  @@map("purchases")
+}
+
+// Tabela de Itens de Compra - Detalha cada item individual de uma compra
+model PurchaseItem {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  purchaseId     String   @map("purchase_id")
+  productId      String?  @map("product_id")
+  categoryId     String?  @map("category_id")
+  productName    String   @map("product_name")
+  quantity       Decimal  @db.Decimal(10, 3)
+  unit           String   @default("un") @db.VarChar(20)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalPrice     Decimal  @map("total_price") @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+
+  purchase Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product?  @relation(fields: [productId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("purchase_items")
+}
+
+// Tabela de Recibos - Histórico de uploads de documentos
+model Receipt {
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  fileUrl     String    @map("file_url")
+  fileName    String    @map("file_name")
+  fileSize    BigInt?   @map("file_size")
+  fileType    String?   @map("file_type") @db.VarChar(50)
+  ocrStatus   String    @default("pending") @map("ocr_status")
+  ocrResult   Json?     @map("ocr_result")
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  purchaseId  String?   @unique @map("purchase_id")
+
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+
+  @@map("receipts")
+}
