@@ -10,40 +10,52 @@ export const dynamic = 'force-dynamic'
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
-  const focusedPrompt = `🎯 FOCO LASER: Use sua VISÃO COMPUTACIONAL para extrair TODOS os produtos desta imagem de cupom fiscal.
+  const focusedPrompt = `🎯 FOCO LASER: Extrair APENAS os produtos que você REALMENTE VÊ nesta imagem de cupom fiscal.
 
-📸 INSTRUÇÕES VISUAIS:
+⚠️ REGRA ANTI-ALUCINAÇÃO - LEIA COM ATENÇÃO:
+- APENAS extraia texto que você VÊ CLARAMENTE na imagem
+- NUNCA invente, crie, ou presuma produtos
+- NUNCA use exemplos genéricos como "PRODUTO A", "ITEM 1", etc.
+- Se NÃO conseguir ler um produto com clareza, NÃO o inclua
+- É MELHOR retornar MENOS itens corretos do que itens inventados
+- Se a qualidade da imagem for ruim e você NÃO consegue ler nada, retorne lista VAZIA
 
-1. IGNORE o topo (cabeçalho) e o final (rodapé) do cupom
-2. FOQUE APENAS na área CENTRAL onde estão listados os produtos
-3. IDENTIFIQUE VISUALMENTE cada linha que representa um produto
-4. LEIA o texto EXATAMENTE como aparece na imagem
+📸 COMO LER A IMAGEM:
 
-🔍 O QUE PROCURAR VISUALMENTE:
-- Linhas com nomes de produtos seguidos de números
-- Área com múltiplas linhas similares (lista de itens)
-- Valores monetários (R$ ou números decimais)
-- Códigos numéricos antes dos nomes
+1. OLHE para a área central do cupom (entre cabeçalho e total)
+2. IDENTIFIQUE linhas com produtos (geralmente têm nome + valor)
+3. LEIA letra por letra o nome que está IMPRESSO
+4. EXTRAIA os números que você VÊ ao lado do nome
+5. Se o texto estiver ilegível, PULE esse item
 
-📝 PARA CADA PRODUTO QUE VOCÊ VÊ:
-- Copie o NOME exatamente como está impresso
-- Extraia a QUANTIDADE (se visível, senão use 1.0)
-- Extraia o PREÇO UNITÁRIO (se visível)
-- Extraia o PREÇO TOTAL
+🚫 O QUE VOCÊ NÃO PODE FAZER:
+❌ Inventar nomes de produtos ("Produto 1", "Item A", etc.)
+❌ Criar preços aleatórios
+❌ Assumir que existem produtos quando não vê claramente
+❌ Copiar de exemplos ou templates
+❌ "Adivinhar" o que poderia estar escrito
 
-✅ REGRA FUNDAMENTAL:
-Se você VÊ produtos na imagem, você DEVE extrair eles!
-NUNCA retorne lista vazia se houver itens visíveis.
-Mesmo com texto borrado, tente ler o máximo possível.
+✅ O QUE VOCÊ DEVE FAZER:
+✓ Ler SOMENTE o texto real e visível na imagem
+✓ Copiar o nome EXATAMENTE como está impresso
+✓ Extrair APENAS os números que você VÊ
+✓ Retornar lista vazia se não conseguir ler nada claramente
 
-Retorne JSON:
+📝 FORMATO DE RESPOSTA:
+
+Retorne JSON com APENAS os produtos que você REALMENTE VÊ:
 {
   "itens": [
-    {"nome": "PRODUTO", "quantidade": 1.0, "preco_unitario": 9.99, "preco_total": 9.99}
+    {"nome": "NOME_REAL_DO_PRODUTO", "quantidade": 1.0, "preco_unitario": 9.99, "preco_total": 9.99}
   ]
 }
 
-Use sua capacidade de visão avançada para ler TUDO que for possível!`
+Se não vê produtos claramente, retorne:
+{
+  "itens": []
+}
+
+⚠️ LEMBRE-SE: QUALIDADE é mais importante que QUANTIDADE. É preferível retornar 2 itens corretos do que 10 itens inventados!`
 
   const messages = [
     {
@@ -70,7 +82,7 @@ Use sua capacidade de visão avançada para ler TUDO que for possível!`
       model: 'gpt-4o',
       messages,
       max_tokens: 3000,
-      temperature: 0.2,
+      temperature: 0.0,  // Zero para evitar inventar dados
       response_format: { type: 'json_object' },
     }),
   })
@@ -106,7 +118,14 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     
     const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS usando visão computacional avançada.
 
-TAREFA CRÍTICA: Analisar a IMAGEM do cupom fiscal e extrair TODOS os produtos/itens visíveis.
+⚠️ REGRA FUNDAMENTAL - ANTI-ALUCINAÇÃO:
+- APENAS extraia texto que você VÊ CLARAMENTE na imagem
+- NUNCA invente, crie, ou presuma informações
+- Se NÃO conseguir ler algo, deixe como null ou vazio
+- É MELHOR retornar dados incompletos CORRETOS do que dados completos FALSOS
+- NUNCA use exemplos genéricos como "PRODUTO 1", "ITEM A", "ESTABELECIMENTO EXEMPLO"
+
+TAREFA: Analisar a IMAGEM do cupom fiscal e extrair APENAS os dados que você REALMENTE VÊ.
 
 🔍 ANÁLISE VISUAL DO CUPOM FISCAL:
 
@@ -121,35 +140,31 @@ Identifique visualmente:
 
 2️⃣ CORPO (Meio do cupom) - ÁREA MAIS IMPORTANTE:
    
-   ⚠️ USE SUA VISÃO COMPUTACIONAL:
-   - Identifique VISUALMENTE cada linha de produto
-   - Leia o texto EXATAMENTE como está impresso
-   - Produtos geralmente aparecem em linhas sequenciais
-   - Cada produto tem um nome e valor associado
+   ⚠️ REGRAS CRÍTICAS PARA EXTRAÇÃO DE ITENS:
+   - Leia APENAS o que está REALMENTE IMPRESSO na imagem
+   - NUNCA invente nomes de produtos
+   - NUNCA crie preços aleatórios
+   - Se um item estiver ilegível, PULE-O (não invente)
+   - É MELHOR retornar MENOS itens CORRETOS do que MAIS itens FALSOS
    
-   📝 PADRÕES VISUAIS COMUNS:
+   📝 PADRÕES VISUAIS COMUNS (APENAS EXEMPLOS - NÃO USE COMO DADOS REAIS):
    
    Padrão A: NOME DO PRODUTO    QTD x PREÇO = TOTAL
-   Exemplo visual: "TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
-   
    Padrão B: COD  DESCRIÇÃO    QTD  UN  VL UNIT  VL TOTAL
-   Exemplo visual: "001  ARROZ TIPO 1    2   KG   4.50    9.00"
-   
    Padrão C: PRODUTO              QUANT   VALOR
-   Exemplo visual: "FEIJAO PRETO 1KG     1 UN    6.50"
 
-   🎯 LOCALIZE VISUALMENTE A ÁREA DE ITENS:
-   - Está ENTRE o cabeçalho (topo) e o total (rodapé)
-   - Linhas que contêm valores monetários (R$ ou números decimais)
-   - Linhas que começam com códigos numéricos ou nomes
-   - Área com múltiplas linhas de texto semelhantes
-   - Geralmente a maior seção do cupom
+   🎯 COMO LOCALIZAR ITENS:
+   - Área ENTRE o cabeçalho (topo) e o total (rodapé)
+   - Linhas com valores monetários
+   - Linhas com códigos + nomes + preços
+   - Seção com múltiplas linhas similares
    
-   ⚠️ INSTRUÇÕES DE LEITURA VISUAL:
-   - LEIA LINHA POR LINHA da área central
-   - NÃO pule nenhuma linha com produto
-   - Se o texto estiver borrado, tente ler o que for possível
-   - Priorize a extração de TODOS os itens, mesmo que alguns dados estejam incompletos
+   ⚠️ INSTRUÇÕES DE LEITURA:
+   1. OLHE para cada linha da área de produtos
+   2. LEIA letra por letra o nome que você VÊ
+   3. EXTRAIA os números que estão IMPRESSOS
+   4. Se NÃO conseguir ler claramente, PULE esse item
+   5. NÃO use exemplos genéricos ou inventados
 
 3️⃣ RODAPÉ (Final do cupom):
    - SUBTOTAL
@@ -161,13 +176,13 @@ Identifique visualmente:
 📋 FORMATO JSON EXIGIDO:
 
 {
-  "fornecedor": "Nome do estabelecimento",
-  "cnpj": "00.000.000/0000-00",
-  "data": "YYYY-MM-DD",
+  "fornecedor": "Nome REAL (ou null)",
+  "cnpj": "CNPJ REAL (ou null)",
+  "data": "YYYY-MM-DD REAL (ou null)",
   "total": 99.99,
   "itens": [
     {
-      "nome": "NOME COMPLETO DO PRODUTO",
+      "nome": "NOME REAL QUE VOCÊ VÊ",
       "quantidade": 1.5,
       "preco_unitario": 9.99,
       "preco_total": 14.99
@@ -175,54 +190,44 @@ Identifique visualmente:
   ]
 }
 
-⚠️ REGRAS ABSOLUTAS PARA EXTRAÇÃO DE ITENS:
+⚠️ REGRAS ABSOLUTAS ANTI-ALUCINAÇÃO:
 
-1. LEIA LINHA POR LINHA a área central do cupom
-2. EXTRAIA TODO produto que tem preço associado
-3. Se não conseguir ler quantidade exata, use 1.0
-4. Se não conseguir ler preço unitário, use o preço total
-5. NUNCA retorne array de itens vazio se há produtos visíveis
-6. Inclua TODAS as linhas que parecem ser produtos
+1. APENAS extraia produtos que você VÊ CLARAMENTE na imagem
+2. NUNCA invente nomes como "Produto 1", "Item A", "Arroz Branco" genérico
+3. Se NÃO conseguir ler um produto, PULE-O
+4. É MELHOR retornar 0 itens do que itens FALSOS
+5. Use null para campos que não consegue ler
+6. NUNCA use os exemplos abaixo como dados reais
 
-🎯 EXEMPLO PRÁTICO:
+🎯 EXEMPLO ILUSTRATIVO (NÃO USE COMO DADOS REAIS):
 
-Cupom mostra:
+⚠️ O exemplo abaixo é APENAS para mostrar o formato. NUNCA copie esses dados!
+
+SE o cupom mostrasse:
 SUPERMERCADO XYZ
-CNPJ: 12.345.678/0001-90
---------------------------
-001 ARROZ BRANCO 5KG
-    2.000 x 18.90 = 37.80
-002 FEIJAO PRETO 1KG  
-    3.000 x 7.50 = 22.50
-003 OLEO SOJA 900ML
-    1.000 x 8.90 = 8.90
---------------------------
-TOTAL R$ 69.20
+001 ARROZ BRANCO 5KG = 37.80
 
-Extração esperada (JSON):
+ENTÃO você retornaria:
 {
   "fornecedor": "SUPERMERCADO XYZ",
-  "cnpj": "12.345.678/0001-90",
-  "data": "2025-11-19",
-  "total": 69.20,
   "itens": [
-    {"nome": "ARROZ BRANCO 5KG", "quantidade": 2.0, "preco_unitario": 18.90, "preco_total": 37.80},
-    {"nome": "FEIJAO PRETO 1KG", "quantidade": 3.0, "preco_unitario": 7.50, "preco_total": 22.50},
-    {"nome": "OLEO SOJA 900ML", "quantidade": 1.0, "preco_unitario": 8.90, "preco_total": 8.90}
+    {"nome": "ARROZ BRANCO 5KG", "preco_total": 37.80}
   ]
 }
 
-✅ CHECKLIST ANTES DE RETORNAR:
-□ Encontrei o nome do estabelecimento?
-□ Encontrei a data da compra?
-□ Encontrei o valor total?
-□ LI TODAS AS LINHAS entre cabeçalho e total?
-□ Extraí CADA produto visível?
-□ O array "itens" tem pelo menos 1 produto?
+✅ CHECKLIST ANTI-ALUCINAÇÃO ANTES DE RETORNAR:
+□ Cada produto que listei está REALMENTE VISÍVEL na imagem?
+□ Copiei os nomes EXATAMENTE como aparecem?
+□ Extraí APENAS números que estão IMPRESSOS?
+□ NÃO inventei nomes genéricos como "Produto 1"?
+□ NÃO criei preços aleatórios?
+□ Se não vejo produtos claramente, retornei itens: []?
 
-❌ ERROS COMUNS A EVITAR:
-- Retornar itens: [] vazio quando há produtos no cupom
-- Pular linhas de produtos
+🚫 ERROS GRAVÍSSIMOS A EVITAR:
+- ❌ INVENTAR produtos que não estão na imagem
+- ❌ Usar exemplos genéricos ("Produto A", "Item 1")
+- ❌ Criar dados quando a imagem está ilegível
+- ❌ Copiar os exemplos acima como dados reais
 - Confundir subtotal com itens
 - Não ler produtos em múltiplas linhas
 
@@ -259,7 +264,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
         model: 'gpt-4o',
         messages,
         max_tokens: 4000,
-        temperature: 0.1,
+        temperature: 0.0,  // Zero para evitar criatividade/alucinação
         response_format: { type: 'json_object' },
       }),
     })
