@@ -65,7 +65,8 @@ export default function UploadPage() {
       })
 
       if (!uploadResponse.ok) {
-        throw new Error('Erro no upload do arquivo')
+        const errorData = await uploadResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erro no upload do arquivo')
       }
 
       const uploadData = await uploadResponse.json()
@@ -85,17 +86,26 @@ export default function UploadPage() {
       })
 
       if (!ocrResponse.ok) {
-        throw new Error('Erro no processamento OCR')
+        const errorData = await ocrResponse.json().catch(() => ({}))
+        const errorMsg = errorData.details || errorData.error || 'Erro no processamento OCR'
+        throw new Error(errorMsg)
       }
 
       const ocrData = await ocrResponse.json()
+      
+      // Verificar se houve erro no processamento
+      if (ocrData.error) {
+        throw new Error(ocrData.error)
+      }
+      
       toast.success('Documento processado com sucesso!')
 
       // 3. Redirecionar para validação com IA
       router.push(`/chat-validacao?receiptId=${uploadData.receiptId}`)
-    } catch (error) {
-      console.error('Erro:', error)
-      toast.error('Erro ao processar documento')
+    } catch (error: any) {
+      console.error('Erro completo:', error)
+      const errorMessage = error?.message || 'Erro ao processar documento'
+      toast.error(errorMessage)
     } finally {
       setUploading(false)
       setProcessing(false)

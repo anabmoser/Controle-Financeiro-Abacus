@@ -18,6 +18,30 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
+    const promptText = `Extraia todas as informações deste cupom fiscal ou nota. 
+
+Retorne um JSON válido com a seguinte estrutura exata:
+{
+  "fornecedor": "nome do estabelecimento",
+  "cnpj": "CNPJ se disponível ou null",
+  "data": "data da compra no formato YYYY-MM-DD",
+  "total": 123.45,
+  "itens": [
+    {
+      "nome": "nome do produto",
+      "quantidade": 1.0,
+      "preco_unitario": 10.50,
+      "preco_total": 10.50
+    }
+  ]
+}
+
+IMPORTANTE:
+- Retorne APENAS o JSON, sem texto adicional
+- Valores numéricos devem ser números, não strings
+- Se não encontrar um valor, use null
+- Data deve estar no formato YYYY-MM-DD`
+
     const messages = [
       {
         role: 'user',
@@ -25,7 +49,7 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
           ? [
               {
                 type: 'text',
-                text: 'Extraia todas as informações deste cupom fiscal. Liste: nome do fornecedor, CNPJ (se houver), data, total, e todos os itens com nome, quantidade e preço. Retorne em formato JSON estruturado.',
+                text: promptText,
               },
               {
                 type: 'image_url',
@@ -34,7 +58,7 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
                 },
               },
             ]
-          : `Extraia todas as informações deste documento PDF. Liste: nome do fornecedor, CNPJ (se houver), data, total, e todos os itens com nome, quantidade e preço. Retorne em formato JSON estruturado. Conteúdo base64 do documento: ${base64.substring(0, 100)}...`,
+          : promptText,
       },
     ]
 
@@ -46,7 +70,7 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
         Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4o-mini',
         messages,
         max_tokens: 2000,
         response_format: { type: 'json_object' },
@@ -54,32 +78,45 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     })
 
     if (!llmResponse.ok) {
-      throw new Error('Erro na chamada da API LLM')
+      const errorText = await llmResponse.text()
+      console.error('Erro LLM API:', errorText)
+      throw new Error(`Erro na chamada da API LLM: ${llmResponse.status} - ${errorText}`)
     }
 
     const llmData = await llmResponse.json()
     const content = llmData?.choices?.[0]?.message?.content
 
     if (!content) {
+      console.error('Resposta LLM completa:', JSON.stringify(llmData))
       throw new Error('Resposta vazia da LLM')
     }
 
     // Parse JSON response
-    const extractedData = JSON.parse(content)
+    let extractedData
+    try {
+      extractedData = JSON.parse(content)
+      console.log('Dados extraídos com sucesso:', JSON.stringify(extractedData, null, 2))
+    } catch (parseError) {
+      console.error('Erro ao fazer parse do JSON:', content)
+      throw new Error('Resposta da LLM não está em formato JSON válido')
+    }
 
     // Estruturar dados no formato esperado
-    return {
-      supplierName: extractedData?.supplier_name || extractedData?.fornecedor || 'Fornecedor Desconhecido',
-      supplierCnpj: extractedData?.cnpj || null,
-      purchaseDate: extractedData?.date || extractedData?.data || new Date().toISOString(),
-      totalAmount: extractedData?.total || extractedData?.total_amount || 0,
-      items: (extractedData?.items || extractedData?.itens || []).map((item: any) => ({
-        name: item?.name || item?.produto || item?.description || 'Item',
-        quantity: item?.quantity || item?.quantidade || 1,
-        unitPrice: item?.unit_price || item?.preco_unitario || 0,
-        totalPrice: item?.total_price || item?.preco_total || 0,
+    const result = {
+      supplierName: extractedData?.supplier_name || extractedData?.fornecedor || extractedData?.supplier || 'Fornecedor Desconhecido',
+      supplierCnpj: extractedData?.cnpj || extractedData?.supplier_cnpj || null,
+      purchaseDate: extractedData?.date || extractedData?.data || extractedData?.purchase_date || new Date().toISOString(),
+      totalAmount: parseFloat(extractedData?.total || extractedData?.total_amount || extractedData?.valor_total || 0),
+      items: (extractedData?.items || extractedData?.itens || extractedData?.produtos || []).map((item: any) => ({
+        name: item?.name || item?.produto || item?.description || item?.nome || 'Item',
+        quantity: parseFloat(item?.quantity || item?.quantidade || item?.qtd || 1),
+        unitPrice: parseFloat(item?.unit_price || item?.preco_unitario || item?.valor_unitario || 0),
+        totalPrice: parseFloat(item?.total_price || item?.preco_total || item?.valor_total || 0),
       })),
     }
+
+    console.log('Dados estruturados:', JSON.stringify(result, null, 2))
+    return result
   } catch (error: any) {
     console.error('Erro no processamento com LLM:', error)
     const errorMessage = error?.message || 'Erro desconhecido no processamento'
