@@ -5,6 +5,72 @@ import { downloadFile } from '@/lib/s3'
 
 export const dynamic = 'force-dynamic'
 
+// Função auxiliar para segunda tentativa focada em itens
+async function extractItemsOnly(base64: string, fileType: string) {
+  const isImage = fileType?.startsWith('image/')
+  
+  const focusedPrompt = `FOCO TOTAL: Extrair lista de produtos/itens deste cupom fiscal.
+
+IGNORE cabeçalho e rodapé. LEIA APENAS a área central com os produtos.
+
+Cada linha de produto contém um nome e valor. Extraia TUDO.
+
+Retorne JSON:
+{
+  "itens": [
+    {"nome": "PRODUTO", "quantidade": 1.0, "preco_unitario": 9.99, "preco_total": 9.99}
+  ]
+}
+
+Se não conseguir ler quantidade/preço unitário, use valores do total.
+
+RETORNE PELO MENOS 1 ITEM SE HOUVER PRODUTOS VISÍVEIS NO CUPOM.`
+
+  const messages = [
+    {
+      role: 'user',
+      content: isImage
+        ? [
+            { type: 'text', text: focusedPrompt },
+            {
+              type: 'image_url',
+              image_url: { url: `data:${fileType};base64,${base64}` },
+            },
+          ]
+        : focusedPrompt,
+    },
+  ]
+
+  const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages,
+      max_tokens: 3000,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Falha na segunda tentativa de extração')
+  }
+
+  const data = await response.json()
+  const content = data?.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Resposta vazia na segunda tentativa')
+  }
+
+  const parsed = JSON.parse(content)
+  return parsed?.itens || parsed?.items || []
+}
+
 // Função para processar documento com LLM (substitui Azure OCR)
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   try {
@@ -18,79 +84,113 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Você é um especialista em extrair dados de CUPONS FISCAIS BRASILEIROS (ECF/NFC-e/SAT).
+    const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS.
 
-ANALISE COM ATENÇÃO a imagem do cupom fiscal e extraia os dados com MÁXIMA PRECISÃO.
+TAREFA CRÍTICA: Extrair TODOS os produtos/itens visíveis no cupom fiscal.
 
-INSTRUÇÕES PARA CUPONS FISCAIS BRASILEIROS:
+🔍 ANÁLISE DO CUPOM FISCAL:
 
-1. FORNECEDOR/ESTABELECIMENTO:
-   - Geralmente aparece no topo do cupom
-   - Pode estar em MAIÚSCULAS
-   - Nome completo da empresa
+Veja a imagem com atenção e identifique:
 
-2. CNPJ:
-   - Formato: XX.XXX.XXX/XXXX-XX
-   - Está sempre no cabeçalho do cupom
+1️⃣ CABEÇALHO (Topo do cupom):
+   - Nome do estabelecimento (geralmente em MAIÚSCULAS)
+   - CNPJ (formato XX.XXX.XXX/XXXX-XX)
+   - Endereço e dados da loja
 
-3. DATA DA COMPRA:
-   - Procure por "DATA:" ou "EMISSÃO:"
-   - Formato comum: DD/MM/YYYY
-   - Converta para: YYYY-MM-DD
+2️⃣ CORPO (Meio do cupom) - ÁREA MAIS IMPORTANTE:
+   ⚠️ CADA LINHA DE PRODUTO GERALMENTE CONTÉM:
+   
+   Padrão A: NOME DO PRODUTO    QTD x PREÇO = TOTAL
+   Exemplo: "TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
+   
+   Padrão B: COD  DESCRIÇÃO    QTD  UN  VL UNIT  VL TOTAL
+   Exemplo: "001  ARROZ TIPO 1    2   KG   4.50    9.00"
+   
+   Padrão C: PRODUTO              QUANT   VALOR
+   Exemplo: "FEIJAO PRETO 1KG     1 UN    6.50"
 
-4. ITENS/PRODUTOS:
-   - Cada linha tem: NOME DO PRODUTO, QUANTIDADE, VALOR UNITÁRIO, VALOR TOTAL
-   - ATENÇÃO: Leia EXATAMENTE o nome do produto como está escrito
-   - Unidades: UN, KG, LT, PC, etc.
-   - Valores: sempre em R$
-   - IMPORTANTE: NÃO invente ou altere nomes de produtos
-   - IMPORTANTE: Extraia o nome COMPLETO do produto, incluindo marca/especificações
+   🎯 ONDE PROCURAR OS ITENS:
+   - Entre o cabeçalho e "SUBTOTAL" ou "TOTAL"
+   - Linhas com valores em R$
+   - Linhas que começam com códigos ou nomes de produtos
+   - Área com várias linhas de texto seguidas
 
-5. VALOR TOTAL:
-   - Procure por "TOTAL R$" ou "VALOR TOTAL"
-   - Geralmente está no final do cupom
-   - Pode estar em negrito ou destacado
+3️⃣ RODAPÉ (Final do cupom):
+   - SUBTOTAL
+   - DESCONTOS (se houver)
+   - TOTAL (valor final pago)
+   - Forma de pagamento
+   - Data e hora da compra
 
-FORMATO DE SAÍDA (JSON):
+📋 FORMATO JSON EXIGIDO:
+
 {
-  "fornecedor": "NOME EXATO DO ESTABELECIMENTO",
-  "cnpj": "XX.XXX.XXX/XXXX-XX",
+  "fornecedor": "Nome do estabelecimento",
+  "cnpj": "00.000.000/0000-00",
   "data": "YYYY-MM-DD",
-  "total": 123.45,
+  "total": 99.99,
   "itens": [
     {
-      "nome": "NOME EXATO DO PRODUTO COMO ESTÁ NO CUPOM",
-      "quantidade": 1.0,
-      "preco_unitario": 10.50,
-      "preco_total": 10.50
+      "nome": "NOME COMPLETO DO PRODUTO",
+      "quantidade": 1.5,
+      "preco_unitario": 9.99,
+      "preco_total": 14.99
     }
   ]
 }
 
-EXEMPLO REAL DE CUPOM:
-Se o cupom mostrar:
-"TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
+⚠️ REGRAS ABSOLUTAS PARA EXTRAÇÃO DE ITENS:
 
-Extraia assim:
+1. LEIA LINHA POR LINHA a área central do cupom
+2. EXTRAIA TODO produto que tem preço associado
+3. Se não conseguir ler quantidade exata, use 1.0
+4. Se não conseguir ler preço unitário, use o preço total
+5. NUNCA retorne array de itens vazio se há produtos visíveis
+6. Inclua TODAS as linhas que parecem ser produtos
+
+🎯 EXEMPLO PRÁTICO:
+
+Cupom mostra:
+SUPERMERCADO XYZ
+CNPJ: 12.345.678/0001-90
+--------------------------
+001 ARROZ BRANCO 5KG
+    2.000 x 18.90 = 37.80
+002 FEIJAO PRETO 1KG  
+    3.000 x 7.50 = 22.50
+003 OLEO SOJA 900ML
+    1.000 x 8.90 = 8.90
+--------------------------
+TOTAL R$ 69.20
+
+Extração esperada (JSON):
 {
-  "nome": "TOMATE ITALIANO KG",
-  "quantidade": 1.5,
-  "preco_unitario": 8.90,
-  "preco_total": 13.35
+  "fornecedor": "SUPERMERCADO XYZ",
+  "cnpj": "12.345.678/0001-90",
+  "data": "2025-11-19",
+  "total": 69.20,
+  "itens": [
+    {"nome": "ARROZ BRANCO 5KG", "quantidade": 2.0, "preco_unitario": 18.90, "preco_total": 37.80},
+    {"nome": "FEIJAO PRETO 1KG", "quantidade": 3.0, "preco_unitario": 7.50, "preco_total": 22.50},
+    {"nome": "OLEO SOJA 900ML", "quantidade": 1.0, "preco_unitario": 8.90, "preco_total": 8.90}
+  ]
 }
 
-REGRAS CRÍTICAS:
-✅ Copie EXATAMENTE os nomes dos produtos como aparecem
-✅ Mantenha unidades de medida (KG, LT, UN, etc)
-✅ Preserve marcas e especificações
-✅ Valores numéricos devem ser NÚMEROS, não strings
-✅ Use null apenas se o campo realmente não existir
-✅ Data no formato YYYY-MM-DD
-❌ NÃO simplifique nomes de produtos
-❌ NÃO remova informações dos produtos
-❌ NÃO invente dados
+✅ CHECKLIST ANTES DE RETORNAR:
+□ Encontrei o nome do estabelecimento?
+□ Encontrei a data da compra?
+□ Encontrei o valor total?
+□ LI TODAS AS LINHAS entre cabeçalho e total?
+□ Extraí CADA produto visível?
+□ O array "itens" tem pelo menos 1 produto?
 
-Retorne APENAS o JSON, sem texto adicional antes ou depois.`
+❌ ERROS COMUNS A EVITAR:
+- Retornar itens: [] vazio quando há produtos no cupom
+- Pular linhas de produtos
+- Confundir subtotal com itens
+- Não ler produtos em múltiplas linhas
+
+Retorne APENAS o JSON válido, sem texto adicional.`
 
     const messages = [
       {
@@ -153,20 +253,41 @@ Retorne APENAS o JSON, sem texto adicional antes ou depois.`
     }
 
     // Estruturar dados no formato esperado
+    let itemsRaw = extractedData?.items || extractedData?.itens || extractedData?.produtos || []
+    
+    // Validar se extraiu itens - SE NÃO, fazer segunda tentativa
+    if (!Array.isArray(itemsRaw) || itemsRaw.length === 0) {
+      console.warn('⚠️ PRIMEIRA TENTATIVA: Nenhum item extraído')
+      console.warn('Dados brutos:', JSON.stringify(extractedData, null, 2))
+      console.log('🔄 Iniciando SEGUNDA TENTATIVA focada em itens...')
+      
+      try {
+        itemsRaw = await extractItemsOnly(base64, fileType)
+        console.log(`✅ SEGUNDA TENTATIVA bem-sucedida! ${itemsRaw.length} itens encontrados`)
+      } catch (retryError) {
+        console.error('❌ SEGUNDA TENTATIVA falhou:', retryError)
+        console.warn('⚠️ Continuando sem itens extraídos')
+      }
+    }
+
     const result = {
       supplierName: extractedData?.supplier_name || extractedData?.fornecedor || extractedData?.supplier || 'Fornecedor Desconhecido',
       supplierCnpj: extractedData?.cnpj || extractedData?.supplier_cnpj || null,
-      purchaseDate: extractedData?.date || extractedData?.data || extractedData?.purchase_date || new Date().toISOString(),
+      purchaseDate: extractedData?.date || extractedData?.data || extractedData?.purchase_date || new Date().toISOString().split('T')[0],
       totalAmount: parseFloat(extractedData?.total || extractedData?.total_amount || extractedData?.valor_total || 0),
-      items: (extractedData?.items || extractedData?.itens || extractedData?.produtos || []).map((item: any) => ({
-        name: item?.name || item?.produto || item?.description || item?.nome || 'Item',
+      items: itemsRaw.map((item: any) => ({
+        name: item?.name || item?.produto || item?.description || item?.nome || 'Item Sem Nome',
         quantity: parseFloat(item?.quantity || item?.quantidade || item?.qtd || 1),
-        unitPrice: parseFloat(item?.unit_price || item?.preco_unitario || item?.valor_unitario || 0),
-        totalPrice: parseFloat(item?.total_price || item?.preco_total || item?.valor_total || 0),
+        unitPrice: parseFloat(item?.unit_price || item?.preco_unitario || item?.valor_unitario || item?.price || 0),
+        totalPrice: parseFloat(item?.total_price || item?.preco_total || item?.valor_total || item?.total || 0),
       })),
+      // Adicionar aviso se não extraiu itens
+      warning: itemsRaw.length === 0 ? 'Nenhum item foi extraído. Verifique se a imagem está legível.' : undefined
     }
 
-    console.log('Dados estruturados:', JSON.stringify(result, null, 2))
+    console.log('✅ Dados estruturados:', JSON.stringify(result, null, 2))
+    console.log(`📊 Total de itens extraídos: ${result.items.length}`)
+    
     return result
   } catch (error: any) {
     console.error('Erro no processamento com LLM:', error)

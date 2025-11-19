@@ -98,7 +98,18 @@ export default function UploadPage() {
         throw new Error(ocrData.error)
       }
       
-      toast.success('Documento processado com sucesso!')
+      // Verificar se extraiu itens
+      if (ocrData.data?.warning) {
+        toast.error(ocrData.data.warning, { duration: 5000 })
+        throw new Error('Nenhum item foi extraído do cupom. Tente tirar uma foto mais nítida com boa iluminação.')
+      }
+      
+      if (!ocrData.data?.items || ocrData.data.items.length === 0) {
+        toast.error('Nenhum produto foi identificado no cupom', { duration: 5000 })
+        throw new Error('Não foi possível ler os produtos do cupom. Verifique se:\n- A foto está nítida\n- O texto está legível\n- O cupom está completo na imagem')
+      }
+      
+      toast.success(`Documento processado! ${ocrData.data.items.length} itens encontrados.`)
 
       // 3. Redirecionar para validação com IA
       router.push(`/chat-validacao?receiptId=${uploadData.receiptId}`)
