@@ -6,15 +6,15 @@ import { downloadFile } from '@/lib/s3'
 export const dynamic = 'force-dynamic'
 
 // Função auxiliar para segunda tentativa focada em itens
-// Usa Gemini 1.5 Flash com capacidades SUPERIORES de visão computacional e OCR
+// Usa GPT-4o - melhor modelo disponível na API Abacus.AI para visão e OCR
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
-  const focusedPrompt = `Você é o Google Gemini com capacidades avançadas de VISÃO COMPUTACIONAL.
+  const focusedPrompt = `Você é um modelo de IA avançado com capacidades de VISÃO COMPUTACIONAL e OCR.
 
 🎯 TAREFA: Ler esta imagem de cupom fiscal e extrair APENAS os produtos REALMENTE VISÍVEIS.
 
-⚠️ INSTRUÇÕES CRÍTICAS PARA GEMINI:
+⚠️ INSTRUÇÕES CRÍTICAS:
 - Use sua VISÃO COMPUTACIONAL para LER a imagem
 - Identifique visualmente cada linha de produto
 - Extraia APENAS texto que está REALMENTE IMPRESSO
@@ -22,7 +22,7 @@ async function extractItemsOnly(base64: string, fileType: string) {
 - Se NÃO conseguir LER claramente, retorne lista VAZIA
 - É MELHOR retornar 0 itens do que itens FALSOS
 
-📸 PROCESSO DE LEITURA VISUAL PARA GEMINI:
+📸 PROCESSO DE LEITURA VISUAL:
 
 PASSO 1: LOCALIZE visualmente a área de produtos no cupom
 - Está entre o cabeçalho (topo) e o rodapé (total)
@@ -78,7 +78,7 @@ Se não vê produtos claramente, retorne:
       Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gemini-1.5-flash',
+      model: 'gpt-4o',
       messages,
       max_tokens: 3000,
       temperature: 0.0,  // Zero para evitar inventar dados
@@ -102,7 +102,7 @@ Se não vê produtos claramente, retorne:
 }
 
 // Função para processar documento com LLM
-// Usa Gemini 1.5 Flash - modelo do Google com capacidades SUPERIORES de OCR e visão
+// Usa GPT-4o - melhor modelo disponível na API Abacus.AI para OCR e visão
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   try {
     // Baixar arquivo
@@ -115,11 +115,11 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Você é o Google Gemini com capacidades avançadas de VISÃO COMPUTACIONAL e OCR.
+    const promptText = `Você é um modelo de IA avançado (GPT-4o) com capacidades de VISÃO COMPUTACIONAL e OCR.
 
 🎯 TAREFA: LER visualmente esta imagem de cupom fiscal brasileiro e extrair dados reais.
 
-⚠️ REGRAS CRÍTICAS PARA GEMINI:
+⚠️ REGRAS CRÍTICAS:
 - Use sua VISÃO para LER o que está REALMENTE IMPRESSO
 - NUNCA invente dados ("Produto 1", "Estabelecimento Exemplo")
 - Se NÃO conseguir ler claramente, use null
@@ -137,9 +137,9 @@ Identifique visualmente:
    - CNPJ (formato XX.XXX.XXX/XXXX-XX)
    - Endereço e dados da loja
 
-2️⃣ CORPO - ÁREA DE PRODUTOS (Use sua VISÃO Gemini):
+2️⃣ CORPO - ÁREA DE PRODUTOS (Use sua VISÃO):
    
-   🔍 GEMINI: Use sua capacidade de OCR avançado para:
+   🔍 Use sua capacidade de OCR avançado para:
    
    PASSO 1 - LOCALIZE visualmente a área de produtos:
    - Está ENTRE o cabeçalho (topo) e o rodapé (total/pagamento)
@@ -159,7 +159,7 @@ Identifique visualmente:
    - Extraia os números visíveis (qtd, preços)
    - Se não conseguir ler claramente, PULE
    
-   ⚠️ IMPORTANTE GEMINI:
+   ⚠️ IMPORTANTE:
    - Confie na sua capacidade de VISÃO COMPUTACIONAL
    - Você consegue VER e LER o texto impresso
    - NÃO invente - apenas extraia o que VÊ
@@ -260,7 +260,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
         Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gemini-1.5-flash',
+        model: 'gpt-4o',
         messages,
         max_tokens: 4000,
         temperature: 0.0,  // Zero para evitar criatividade/alucinação
