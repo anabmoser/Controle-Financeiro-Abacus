@@ -28,7 +28,7 @@ export default function LineChart({ data }: LineChartProps) {
         <YAxis
           tick={{ fontSize: 10 }}
           tickLine={false}
-          tickFormatter={(value) => `R$ ${value}`}
+          tickFormatter={(value: any) => `R$ ${value}`}
         />
         <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
         <Line

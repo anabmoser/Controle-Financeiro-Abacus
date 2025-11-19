@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     })
 
     const totalGasto = purchases.reduce(
-      (sum, p) => sum + Number(p?.totalAmount || 0),
+      (sum: number, p: any) => sum + Number(p?.totalAmount || 0),
       0
     )
     const numCompras = purchases.length
@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
       { name: string; value: number; color: string }
     >()
 
-    purchases.forEach((purchase) => {
-      purchase?.purchaseItems?.forEach((item) => {
+    purchases.forEach((purchase: any) => {
+      purchase?.purchaseItems?.forEach((item: any) => {
         if (item?.category) {
           const current = categoriesMap.get(item.category.id) || {
             name: item.category.name,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       })
 
       const monthTotal = monthPurchases.reduce(
-        (sum, p) => sum + Number(p?.totalAmount || 0),
+        (sum: number, p: any) => sum + Number(p?.totalAmount || 0),
         0
       )
 
