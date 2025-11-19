@@ -80,16 +80,20 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
         totalPrice: item?.total_price || item?.preco_total || 0,
       })),
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no processamento com LLM:', error)
-    throw error
+    const errorMessage = error?.message || 'Erro desconhecido no processamento'
+    throw new Error(`Falha no processamento do documento: ${errorMessage}`)
   }
 }
 
 export async function POST(request: NextRequest) {
+  let receiptId: string | undefined
+  
   try {
     const body = await request.json()
-    const { receiptId, cloudStoragePath } = body
+    receiptId = body.receiptId
+    const { cloudStoragePath } = body
 
     if (!receiptId) {
       return NextResponse.json({ error: 'receiptId não fornecido' }, { status: 400 })
@@ -130,24 +134,31 @@ export async function POST(request: NextRequest) {
       success: true,
       data: ocrData,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no processamento OCR:', error)
+    const errorMessage = error?.message || 'Erro desconhecido'
     
     // Atualizar status como erro
-    try {
-      const body = await request.json()
-      if (body.receiptId) {
+    if (receiptId) {
+      try {
         await prisma.receipt.update({
-          where: { id: body.receiptId },
-          data: { ocrStatus: 'error' },
+          where: { id: receiptId },
+          data: { 
+            ocrStatus: 'error',
+            ocrResult: { error: errorMessage } as any
+          },
         })
+      } catch (e) {
+        console.error('Erro ao atualizar status:', e)
       }
-    } catch (e) {
-      // Ignorar erro ao atualizar status
     }
 
     return NextResponse.json(
-      { error: 'Erro ao processar documento' },
+      { 
+        error: 'Erro ao processar documento',
+        details: errorMessage,
+        suggestion: 'Verifique se a imagem está legível e tente novamente'
+      },
       { status: 500 }
     )
   }
