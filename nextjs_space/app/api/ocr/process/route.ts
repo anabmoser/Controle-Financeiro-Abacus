@@ -10,35 +10,59 @@ export const dynamic = 'force-dynamic'
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
-  const focusedPrompt = `Você é um modelo de IA avançado com capacidades de VISÃO COMPUTACIONAL e OCR.
+  const focusedPrompt = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS.
 
-🎯 TAREFA: Ler esta imagem de cupom fiscal e extrair APENAS os produtos REALMENTE VISÍVEIS.
+🎯 FOCO ABSOLUTO: Extrair TODOS os produtos visíveis neste cupom fiscal.
 
-⚠️ INSTRUÇÕES CRÍTICAS:
-- Use sua VISÃO COMPUTACIONAL para LER a imagem
-- Identifique visualmente cada linha de produto
-- Extraia APENAS texto que está REALMENTE IMPRESSO
-- NUNCA invente produtos ("Produto 1", "Item A", etc.)
-- Se NÃO conseguir LER claramente, retorne lista VAZIA
-- É MELHOR retornar 0 itens do que itens FALSOS
+⚠️ REGRAS:
+1. USE sua visão para LER linha por linha
+2. Procure por linhas com NOMES DE PRODUTOS + VALORES
+3. Produtos ficam ENTRE o nome da loja (topo) e o TOTAL (embaixo)
+4. NUNCA invente - só extraia o que VÊ
+5. Lista vazia é melhor que dados falsos
 
-📸 PROCESSO DE LEITURA VISUAL:
+📸 EXEMPLOS DO QUE PROCURAR NA IMAGEM:
 
-PASSO 1: LOCALIZE visualmente a área de produtos no cupom
-- Está entre o cabeçalho (topo) e o rodapé (total)
-- Geralmente é a maior seção com várias linhas
+Você vai VER linhas como:
 
-PASSO 2: LEIA cada linha de produto que você VÊ
-- Linha por linha, de cima para baixo
-- Copie o nome EXATAMENTE como está impresso
-- Extraia os números visíveis (quantidade, preços)
+✅ "ARROZ INTEGRAL 1KG"
+✅ "FEIJAO CARIOCA"  
+✅ "OLEO DE SOJA 900ML"
+✅ "ACUCAR CRISTAL 1KG"
+✅ "SAL REFINADO 1KG"
+✅ "CAFE TRADICIONAL 500G"
+✅ "LEITE INTEGRAL 1L"
+✅ "MACARRAO PARAFUSO"
 
-PASSO 3: VALIDE antes de adicionar
-- O produto está REALMENTE na imagem?
-- Consegui LER claramente o nome?
-- Os números são REAIS (não inventados)?
-- Se SIM → adicione na lista
-- Se NÃO → pule este item
+Seguidas de linhas com números:
+✅ "1 UN x 5,90    5,90"
+✅ "2 UN x 8,50   17,00"
+
+🔍 ONDE PROCURAR:
+
+Cupons brasileiros têm esta estrutura visual:
+
+TOPO: NOME DO ESTABELECIMENTO (ignore)
+TOPO: CNPJ: XX.XXX.XXX/XXXX-XX (ignore)
+TOPO: Endereço (ignore)
+---LINHA SEPARADORA---
+MEIO: 001 PRODUTO NOME AQUI (EXTRAIA!)
+MEIO: 1 UN x 10,00  10,00 (EXTRAIA!)
+MEIO: 002 OUTRO PRODUTO (EXTRAIA!)
+MEIO: 2 UN x 5,50  11,00 (EXTRAIA!)
+MEIO: 003 MAIS UM PRODUTO (EXTRAIA!)
+MEIO: 1 UN x 7,90  7,90 (EXTRAIA!)
+---LINHA SEPARADORA---
+RODAPÉ: SUBTOTAL 28,90 (ignore)
+RODAPÉ: TOTAL 28,90 (ignore)
+
+🎯 PROCESSO:
+
+1. OLHE a imagem completa
+2. ENCONTRE onde começam os produtos (após CNPJ/endereço)
+3. ENCONTRE onde terminam (antes de SUBTOTAL/TOTAL)
+4. LEIA cada linha entre esses pontos
+5. EXTRAIA nome + valores de cada produto que VÊ
 
 📝 FORMATO DE RESPOSTA:
 
@@ -87,18 +111,32 @@ Se não vê produtos claramente, retorne:
   })
 
   if (!response.ok) {
+    const errorText = await response.text()
+    console.error('❌ Erro na 2ª tentativa (HTTP):', errorText)
     throw new Error('Falha na segunda tentativa de extração')
   }
 
   const data = await response.json()
   const content = data?.choices?.[0]?.message?.content
 
+  console.log('📤 2ª Tentativa - Resposta bruta:', content?.substring(0, 400) + '...')
+
   if (!content) {
+    console.error('❌ 2ª Tentativa - Resposta vazia!')
     throw new Error('Resposta vazia na segunda tentativa')
   }
 
   const parsed = JSON.parse(content)
-  return parsed?.itens || parsed?.items || []
+  const items = parsed?.itens || parsed?.items || []
+  
+  console.log(`📦 2ª Tentativa - Total de itens: ${items.length}`)
+  if (items.length > 0) {
+    console.log(`📋 2ª Tentativa - Produtos:`, items.map((i: any) => i.nome || i.name).slice(0, 5).join(', '))
+  } else {
+    console.warn('⚠️ 2ª Tentativa - Nenhum item encontrado!')
+  }
+  
+  return items
 }
 
 // Função para processar documento com LLM
@@ -115,62 +153,89 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Você é um modelo de IA avançado (GPT-4o) com capacidades de VISÃO COMPUTACIONAL e OCR.
+    const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS (NFCe).
 
-🎯 TAREFA: LER visualmente esta imagem de cupom fiscal brasileiro e extrair dados reais.
+🎯 TAREFA CRÍTICA: Extrair TODOS os produtos que você VÊ neste cupom fiscal.
 
-⚠️ REGRAS CRÍTICAS:
-- Use sua VISÃO para LER o que está REALMENTE IMPRESSO
-- NUNCA invente dados ("Produto 1", "Estabelecimento Exemplo")
-- Se NÃO conseguir ler claramente, use null
-- É MELHOR retornar poucos dados CORRETOS do que muitos dados FALSOS
-- Confie na sua capacidade de visão para ler texto real
+⚠️ REGRAS ABSOLUTAS:
+1. LEIA cada linha da imagem com sua visão computacional
+2. Cupons brasileiros têm 40-80 caracteres de largura
+3. Produtos estão SEMPRE entre o cabeçalho e o total
+4. NUNCA invente produtos - só extraia o que VÊ
+5. Se não vir NADA, retorne lista vazia
 
-🔍 ANÁLISE VISUAL DO CUPOM FISCAL:
+📸 COMO CUPONS FISCAIS BRASILEIROS APARECEM:
 
-IMPORTANTE: Você está vendo a IMAGEM REAL do cupom. Leia o texto EXATAMENTE como aparece na imagem.
+╔════════════════════════════════════╗
+║ SUPERMERCADO XYZ LTDA             ║  ← CABEÇALHO
+║ CNPJ: 12.345.678/0001-90          ║
+║ R. Exemplo, 123 - São Paulo       ║
+╠════════════════════════════════════╣
+║ CUPOM FISCAL - NFCe               ║
+║----------------------------------- ║
+║ 001 ARROZ TIPO 1 5KG              ║  ← PRODUTOS
+║     1 UN x 25,90          25,90   ║     (AQUI!)
+║ 002 FEIJAO PRETO 1KG              ║
+║     2 UN x 7,50           15,00   ║
+║ 003 OLEO DE SOJA 900ML            ║
+║     1 UN x 8,90            8,90   ║
+║ 004 MACARRAO ESPAGUETE            ║
+║     3 UN x 4,20           12,60   ║
+║----------------------------------- ║
+║ SUBTOTAL                   62,40  ║  ← RODAPÉ
+║ DESCONTO                    5,00  ║
+║ TOTAL                      57,40  ║
+║ DINHEIRO                   60,00  ║
+║ TROCO                       2,60  ║
+╚════════════════════════════════════╝
 
-Identifique visualmente:
+🔍 LOCALIZE OS PRODUTOS NA IMAGEM:
 
-1️⃣ CABEÇALHO (Topo do cupom):
-   - Nome do estabelecimento (geralmente em MAIÚSCULAS)
-   - CNPJ (formato XX.XXX.XXX/XXXX-XX)
-   - Endereço e dados da loja
+Produtos estão na seção do meio (entre cabeçalho e total).
 
-2️⃣ CORPO - ÁREA DE PRODUTOS (Use sua VISÃO):
-   
-   🔍 Use sua capacidade de OCR avançado para:
-   
-   PASSO 1 - LOCALIZE visualmente a área de produtos:
-   - Está ENTRE o cabeçalho (topo) e o rodapé (total/pagamento)
-   - Geralmente é a seção MAIOR do cupom
-   - Tem várias linhas sequenciais com estrutura similar
-   - Cada linha tem texto + números (preços)
-   
-   PASSO 2 - IDENTIFIQUE o padrão visual dos produtos:
-   - Podem ter código numérico no início
-   - Têm nome/descrição do produto
-   - Têm quantidade e/ou valores
-   - Estrutura se repete linha após linha
-   
-   PASSO 3 - LEIA cada produto que você VÊ:
-   - Use OCR para extrair o texto da linha
-   - Copie EXATAMENTE o nome impresso
-   - Extraia os números visíveis (qtd, preços)
-   - Se não conseguir ler claramente, PULE
-   
-   ⚠️ IMPORTANTE:
-   - Confie na sua capacidade de VISÃO COMPUTACIONAL
-   - Você consegue VER e LER o texto impresso
-   - NÃO invente - apenas extraia o que VÊ
-   - É melhor retornar poucos itens REAIS do que muitos FALSOS
+PADRÕES VISUAIS COMUNS:
 
-3️⃣ RODAPÉ (Final do cupom):
-   - SUBTOTAL
-   - DESCONTOS (se houver)
-   - TOTAL (valor final pago)
-   - Forma de pagamento
-   - Data e hora da compra
+Formato A (código + nome + qtd + preço):
+  001 PRODUTO NOME AQUI
+      2 UN x 10,00          20,00
+
+Formato B (código  descrição  qtd  valor):
+  123  PRODUTO NOME  1  UN  5,50  5,50
+
+Formato C (descrição  qtd  valor):
+  PRODUTO NOME AQUI    1  UN    12,90
+
+Formato D (item compacto):
+  PRODUTO NOME            15,00 F
+
+🎯 PASSO A PASSO PARA EXTRAIR:
+
+PASSO 1: OLHE a imagem e identifique:
+  - Onde está escrito o nome da loja (topo)
+  - Onde está escrito "TOTAL" ou "SUBTOTAL" (embaixo)
+  
+PASSO 2: A área ENTRE o topo e "TOTAL" tem os produtos
+
+PASSO 3: LEIA cada linha dessa área:
+  - Se tem nome + número = produto
+  - Se não consegue ler = pule
+  
+PASSO 4: Para cada produto, extraia:
+  - nome: o texto que você VÊ (ex: "ARROZ TIPO 1 5KG")
+  - quantidade: número antes de "UN" (ex: 1, 2, 3)
+  - precoUnitario: valor após "x" (ex: 25,90)
+  - precoTotal: último valor da linha (ex: 25,90)
+
+⚠️ EXEMPLOS REAIS DE LINHAS QUE VOCÊ VAI VER:
+
+✅ "ARROZ TIPO 1 5KG"     → nome: "ARROZ TIPO 1 5KG"
+✅ "1 UN x 25,90  25,90"  → qtd: 1, preço: 25,90
+✅ "FEIJAO PRETO 1KG"     → nome: "FEIJAO PRETO 1KG"
+✅ "OLEO DE SOJA 900ML"   → nome: "OLEO DE SOJA 900ML"
+✅ "MACARRAO ESPAGUETE"   → nome: "MACARRAO ESPAGUETE"
+
+❌ NÃO invente nomes genéricos:
+❌ "Produto 1", "Item A", "Produto Exemplo"
 
 📋 FORMATO JSON EXIGIDO:
 
@@ -277,7 +342,11 @@ Retorne APENAS o JSON válido, sem texto adicional.`
     const llmData = await llmResponse.json()
     const content = llmData?.choices?.[0]?.message?.content
 
+    console.log('📤 RESPOSTA BRUTA DO GPT-4o:', content?.substring(0, 500) + '...')
+    console.log('📊 Status da resposta:', llmResponse.status)
+
     if (!content) {
+      console.error('❌ Resposta LLM vazia!')
       console.error('Resposta LLM completa:', JSON.stringify(llmData))
       throw new Error('Resposta vazia da LLM')
     }
@@ -286,9 +355,14 @@ Retorne APENAS o JSON válido, sem texto adicional.`
     let extractedData
     try {
       extractedData = JSON.parse(content)
-      console.log('Dados extraídos com sucesso:', JSON.stringify(extractedData, null, 2))
+      console.log('✅ Dados extraídos com sucesso:', JSON.stringify(extractedData, null, 2))
+      console.log(`📦 Número de itens encontrados: ${extractedData?.itens?.length || extractedData?.items?.length || 0}`)
+      
+      if (extractedData?.itens) {
+        console.log(`📋 Itens extraídos:`, extractedData.itens.map((i: any) => i.nome || i.name).join(', '))
+      }
     } catch (parseError) {
-      console.error('Erro ao fazer parse do JSON:', content)
+      console.error('❌ Erro ao fazer parse do JSON:', content)
       throw new Error('Resposta da LLM não está em formato JSON válido')
     }
 
