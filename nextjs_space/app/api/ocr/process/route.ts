@@ -6,7 +6,7 @@ import { downloadFile } from '@/lib/s3'
 export const dynamic = 'force-dynamic'
 
 // Função auxiliar para segunda tentativa focada em itens
-// Usa Gemini 2.0 Flash com capacidades avançadas de visão computacional
+// Usa GPT-4o com capacidades avançadas de visão computacional
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
@@ -43,7 +43,7 @@ Retorne JSON:
   ]
 }
 
-Use sua capacidade de visão avançada do Gemini para ler TUDO que for possível!`
+Use sua capacidade de visão avançada para ler TUDO que for possível!`
 
   const messages = [
     {
@@ -67,7 +67,7 @@ Use sua capacidade de visão avançada do Gemini para ler TUDO que for possível
       Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gpt-4o',
       messages,
       max_tokens: 3000,
       temperature: 0.2,
@@ -91,7 +91,7 @@ Use sua capacidade de visão avançada do Gemini para ler TUDO que for possível
 }
 
 // Função para processar documento com LLM
-// Usa Gemini 2.0 Flash - modelo com excelentes capacidades de OCR e visão computacional
+// Usa GPT-4o - modelo com excelentes capacidades de OCR e visão computacional
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   try {
     // Baixar arquivo
@@ -256,7 +256,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
         Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gpt-4o',
         messages,
         max_tokens: 4000,
         temperature: 0.1,
