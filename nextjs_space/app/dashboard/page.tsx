@@ -14,15 +14,21 @@ import {
 import { formatCurrency } from '@/lib/formatters'
 import dynamic from 'next/dynamic'
 
-const PieChart = dynamic(() => import('@/components/charts/pie-chart'), {
-  ssr: false,
-  loading: () => <LoadingSpinner />,
-})
+const PieChart = dynamic(
+  () => import('@/components/charts/pie-chart').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner />,
+  }
+)
 
-const LineChart = dynamic(() => import('@/components/charts/line-chart'), {
-  ssr: false,
-  loading: () => <LoadingSpinner />,
-})
+const LineChart = dynamic(
+  () => import('@/components/charts/line-chart').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner />,
+  }
+)
 
 interface DashboardStats {
   totalGasto: number
