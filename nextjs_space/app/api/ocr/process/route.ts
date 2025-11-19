@@ -18,17 +18,48 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Extraia todas as informações deste cupom fiscal ou nota. 
+    const promptText = `Você é um especialista em extrair dados de CUPONS FISCAIS BRASILEIROS (ECF/NFC-e/SAT).
 
-Retorne um JSON válido com a seguinte estrutura exata:
+ANALISE COM ATENÇÃO a imagem do cupom fiscal e extraia os dados com MÁXIMA PRECISÃO.
+
+INSTRUÇÕES PARA CUPONS FISCAIS BRASILEIROS:
+
+1. FORNECEDOR/ESTABELECIMENTO:
+   - Geralmente aparece no topo do cupom
+   - Pode estar em MAIÚSCULAS
+   - Nome completo da empresa
+
+2. CNPJ:
+   - Formato: XX.XXX.XXX/XXXX-XX
+   - Está sempre no cabeçalho do cupom
+
+3. DATA DA COMPRA:
+   - Procure por "DATA:" ou "EMISSÃO:"
+   - Formato comum: DD/MM/YYYY
+   - Converta para: YYYY-MM-DD
+
+4. ITENS/PRODUTOS:
+   - Cada linha tem: NOME DO PRODUTO, QUANTIDADE, VALOR UNITÁRIO, VALOR TOTAL
+   - ATENÇÃO: Leia EXATAMENTE o nome do produto como está escrito
+   - Unidades: UN, KG, LT, PC, etc.
+   - Valores: sempre em R$
+   - IMPORTANTE: NÃO invente ou altere nomes de produtos
+   - IMPORTANTE: Extraia o nome COMPLETO do produto, incluindo marca/especificações
+
+5. VALOR TOTAL:
+   - Procure por "TOTAL R$" ou "VALOR TOTAL"
+   - Geralmente está no final do cupom
+   - Pode estar em negrito ou destacado
+
+FORMATO DE SAÍDA (JSON):
 {
-  "fornecedor": "nome do estabelecimento",
-  "cnpj": "CNPJ se disponível ou null",
-  "data": "data da compra no formato YYYY-MM-DD",
+  "fornecedor": "NOME EXATO DO ESTABELECIMENTO",
+  "cnpj": "XX.XXX.XXX/XXXX-XX",
+  "data": "YYYY-MM-DD",
   "total": 123.45,
   "itens": [
     {
-      "nome": "nome do produto",
+      "nome": "NOME EXATO DO PRODUTO COMO ESTÁ NO CUPOM",
       "quantidade": 1.0,
       "preco_unitario": 10.50,
       "preco_total": 10.50
@@ -36,11 +67,30 @@ Retorne um JSON válido com a seguinte estrutura exata:
   ]
 }
 
-IMPORTANTE:
-- Retorne APENAS o JSON, sem texto adicional
-- Valores numéricos devem ser números, não strings
-- Se não encontrar um valor, use null
-- Data deve estar no formato YYYY-MM-DD`
+EXEMPLO REAL DE CUPOM:
+Se o cupom mostrar:
+"TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
+
+Extraia assim:
+{
+  "nome": "TOMATE ITALIANO KG",
+  "quantidade": 1.5,
+  "preco_unitario": 8.90,
+  "preco_total": 13.35
+}
+
+REGRAS CRÍTICAS:
+✅ Copie EXATAMENTE os nomes dos produtos como aparecem
+✅ Mantenha unidades de medida (KG, LT, UN, etc)
+✅ Preserve marcas e especificações
+✅ Valores numéricos devem ser NÚMEROS, não strings
+✅ Use null apenas se o campo realmente não existir
+✅ Data no formato YYYY-MM-DD
+❌ NÃO simplifique nomes de produtos
+❌ NÃO remova informações dos produtos
+❌ NÃO invente dados
+
+Retorne APENAS o JSON, sem texto adicional antes ou depois.`
 
     const messages = [
       {
@@ -72,7 +122,8 @@ IMPORTANTE:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages,
-        max_tokens: 2000,
+        max_tokens: 4000,
+        temperature: 0.1,
         response_format: { type: 'json_object' },
       }),
     })
