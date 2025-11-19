@@ -6,40 +6,39 @@ import { downloadFile } from '@/lib/s3'
 export const dynamic = 'force-dynamic'
 
 // Função auxiliar para segunda tentativa focada em itens
-// Usa GPT-4o com capacidades avançadas de visão computacional
+// Usa Gemini 1.5 Flash com capacidades SUPERIORES de visão computacional e OCR
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
-  const focusedPrompt = `🎯 FOCO LASER: Extrair APENAS os produtos que você REALMENTE VÊ nesta imagem de cupom fiscal.
+  const focusedPrompt = `Você é o Google Gemini com capacidades avançadas de VISÃO COMPUTACIONAL.
 
-⚠️ REGRA ANTI-ALUCINAÇÃO - LEIA COM ATENÇÃO:
-- APENAS extraia texto que você VÊ CLARAMENTE na imagem
-- NUNCA invente, crie, ou presuma produtos
-- NUNCA use exemplos genéricos como "PRODUTO A", "ITEM 1", etc.
-- Se NÃO conseguir ler um produto com clareza, NÃO o inclua
-- É MELHOR retornar MENOS itens corretos do que itens inventados
-- Se a qualidade da imagem for ruim e você NÃO consegue ler nada, retorne lista VAZIA
+🎯 TAREFA: Ler esta imagem de cupom fiscal e extrair APENAS os produtos REALMENTE VISÍVEIS.
 
-📸 COMO LER A IMAGEM:
+⚠️ INSTRUÇÕES CRÍTICAS PARA GEMINI:
+- Use sua VISÃO COMPUTACIONAL para LER a imagem
+- Identifique visualmente cada linha de produto
+- Extraia APENAS texto que está REALMENTE IMPRESSO
+- NUNCA invente produtos ("Produto 1", "Item A", etc.)
+- Se NÃO conseguir LER claramente, retorne lista VAZIA
+- É MELHOR retornar 0 itens do que itens FALSOS
 
-1. OLHE para a área central do cupom (entre cabeçalho e total)
-2. IDENTIFIQUE linhas com produtos (geralmente têm nome + valor)
-3. LEIA letra por letra o nome que está IMPRESSO
-4. EXTRAIA os números que você VÊ ao lado do nome
-5. Se o texto estiver ilegível, PULE esse item
+📸 PROCESSO DE LEITURA VISUAL PARA GEMINI:
 
-🚫 O QUE VOCÊ NÃO PODE FAZER:
-❌ Inventar nomes de produtos ("Produto 1", "Item A", etc.)
-❌ Criar preços aleatórios
-❌ Assumir que existem produtos quando não vê claramente
-❌ Copiar de exemplos ou templates
-❌ "Adivinhar" o que poderia estar escrito
+PASSO 1: LOCALIZE visualmente a área de produtos no cupom
+- Está entre o cabeçalho (topo) e o rodapé (total)
+- Geralmente é a maior seção com várias linhas
 
-✅ O QUE VOCÊ DEVE FAZER:
-✓ Ler SOMENTE o texto real e visível na imagem
-✓ Copiar o nome EXATAMENTE como está impresso
-✓ Extrair APENAS os números que você VÊ
-✓ Retornar lista vazia se não conseguir ler nada claramente
+PASSO 2: LEIA cada linha de produto que você VÊ
+- Linha por linha, de cima para baixo
+- Copie o nome EXATAMENTE como está impresso
+- Extraia os números visíveis (quantidade, preços)
+
+PASSO 3: VALIDE antes de adicionar
+- O produto está REALMENTE na imagem?
+- Consegui LER claramente o nome?
+- Os números são REAIS (não inventados)?
+- Se SIM → adicione na lista
+- Se NÃO → pule este item
 
 📝 FORMATO DE RESPOSTA:
 
@@ -79,7 +78,7 @@ Se não vê produtos claramente, retorne:
       Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gemini-1.5-flash',
       messages,
       max_tokens: 3000,
       temperature: 0.0,  // Zero para evitar inventar dados
@@ -103,7 +102,7 @@ Se não vê produtos claramente, retorne:
 }
 
 // Função para processar documento com LLM
-// Usa GPT-4o - modelo com excelentes capacidades de OCR e visão computacional
+// Usa Gemini 1.5 Flash - modelo do Google com capacidades SUPERIORES de OCR e visão
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   try {
     // Baixar arquivo
@@ -116,16 +115,16 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS usando visão computacional avançada.
+    const promptText = `Você é o Google Gemini com capacidades avançadas de VISÃO COMPUTACIONAL e OCR.
 
-⚠️ REGRA FUNDAMENTAL - ANTI-ALUCINAÇÃO:
-- APENAS extraia texto que você VÊ CLARAMENTE na imagem
-- NUNCA invente, crie, ou presuma informações
-- Se NÃO conseguir ler algo, deixe como null ou vazio
-- É MELHOR retornar dados incompletos CORRETOS do que dados completos FALSOS
-- NUNCA use exemplos genéricos como "PRODUTO 1", "ITEM A", "ESTABELECIMENTO EXEMPLO"
+🎯 TAREFA: LER visualmente esta imagem de cupom fiscal brasileiro e extrair dados reais.
 
-TAREFA: Analisar a IMAGEM do cupom fiscal e extrair APENAS os dados que você REALMENTE VÊ.
+⚠️ REGRAS CRÍTICAS PARA GEMINI:
+- Use sua VISÃO para LER o que está REALMENTE IMPRESSO
+- NUNCA invente dados ("Produto 1", "Estabelecimento Exemplo")
+- Se NÃO conseguir ler claramente, use null
+- É MELHOR retornar poucos dados CORRETOS do que muitos dados FALSOS
+- Confie na sua capacidade de visão para ler texto real
 
 🔍 ANÁLISE VISUAL DO CUPOM FISCAL:
 
@@ -138,33 +137,33 @@ Identifique visualmente:
    - CNPJ (formato XX.XXX.XXX/XXXX-XX)
    - Endereço e dados da loja
 
-2️⃣ CORPO (Meio do cupom) - ÁREA MAIS IMPORTANTE:
+2️⃣ CORPO - ÁREA DE PRODUTOS (Use sua VISÃO Gemini):
    
-   ⚠️ REGRAS CRÍTICAS PARA EXTRAÇÃO DE ITENS:
-   - Leia APENAS o que está REALMENTE IMPRESSO na imagem
-   - NUNCA invente nomes de produtos
-   - NUNCA crie preços aleatórios
-   - Se um item estiver ilegível, PULE-O (não invente)
-   - É MELHOR retornar MENOS itens CORRETOS do que MAIS itens FALSOS
+   🔍 GEMINI: Use sua capacidade de OCR avançado para:
    
-   📝 PADRÕES VISUAIS COMUNS (APENAS EXEMPLOS - NÃO USE COMO DADOS REAIS):
+   PASSO 1 - LOCALIZE visualmente a área de produtos:
+   - Está ENTRE o cabeçalho (topo) e o rodapé (total/pagamento)
+   - Geralmente é a seção MAIOR do cupom
+   - Tem várias linhas sequenciais com estrutura similar
+   - Cada linha tem texto + números (preços)
    
-   Padrão A: NOME DO PRODUTO    QTD x PREÇO = TOTAL
-   Padrão B: COD  DESCRIÇÃO    QTD  UN  VL UNIT  VL TOTAL
-   Padrão C: PRODUTO              QUANT   VALOR
-
-   🎯 COMO LOCALIZAR ITENS:
-   - Área ENTRE o cabeçalho (topo) e o total (rodapé)
-   - Linhas com valores monetários
-   - Linhas com códigos + nomes + preços
-   - Seção com múltiplas linhas similares
+   PASSO 2 - IDENTIFIQUE o padrão visual dos produtos:
+   - Podem ter código numérico no início
+   - Têm nome/descrição do produto
+   - Têm quantidade e/ou valores
+   - Estrutura se repete linha após linha
    
-   ⚠️ INSTRUÇÕES DE LEITURA:
-   1. OLHE para cada linha da área de produtos
-   2. LEIA letra por letra o nome que você VÊ
-   3. EXTRAIA os números que estão IMPRESSOS
-   4. Se NÃO conseguir ler claramente, PULE esse item
-   5. NÃO use exemplos genéricos ou inventados
+   PASSO 3 - LEIA cada produto que você VÊ:
+   - Use OCR para extrair o texto da linha
+   - Copie EXATAMENTE o nome impresso
+   - Extraia os números visíveis (qtd, preços)
+   - Se não conseguir ler claramente, PULE
+   
+   ⚠️ IMPORTANTE GEMINI:
+   - Confie na sua capacidade de VISÃO COMPUTACIONAL
+   - Você consegue VER e LER o texto impresso
+   - NÃO invente - apenas extraia o que VÊ
+   - É melhor retornar poucos itens REAIS do que muitos FALSOS
 
 3️⃣ RODAPÉ (Final do cupom):
    - SUBTOTAL
@@ -261,7 +260,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
         Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gemini-1.5-flash',
         messages,
         max_tokens: 4000,
         temperature: 0.0,  // Zero para evitar criatividade/alucinação
