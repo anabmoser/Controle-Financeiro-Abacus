@@ -9,12 +9,16 @@ import {
   ShoppingCart,
   FolderOpen,
   BarChart3,
+  Package,
+  Calendar,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/upload', label: 'Upload', icon: Upload },
   { href: '/compras', label: 'Compras', icon: ShoppingCart },
+  { href: '/produtos', label: 'Produtos', icon: Package },
+  { href: '/periodos', label: 'Períodos', icon: Calendar },
   { href: '/categorias', label: 'Categorias', icon: FolderOpen },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3 },
 ]
