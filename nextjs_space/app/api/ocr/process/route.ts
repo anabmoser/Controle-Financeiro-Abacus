@@ -6,14 +6,35 @@ import { downloadFile } from '@/lib/s3'
 export const dynamic = 'force-dynamic'
 
 // Função auxiliar para segunda tentativa focada em itens
+// Usa Gemini 2.0 Flash com capacidades avançadas de visão computacional
 async function extractItemsOnly(base64: string, fileType: string) {
   const isImage = fileType?.startsWith('image/')
   
-  const focusedPrompt = `FOCO TOTAL: Extrair lista de produtos/itens deste cupom fiscal.
+  const focusedPrompt = `🎯 FOCO LASER: Use sua VISÃO COMPUTACIONAL para extrair TODOS os produtos desta imagem de cupom fiscal.
 
-IGNORE cabeçalho e rodapé. LEIA APENAS a área central com os produtos.
+📸 INSTRUÇÕES VISUAIS:
 
-Cada linha de produto contém um nome e valor. Extraia TUDO.
+1. IGNORE o topo (cabeçalho) e o final (rodapé) do cupom
+2. FOQUE APENAS na área CENTRAL onde estão listados os produtos
+3. IDENTIFIQUE VISUALMENTE cada linha que representa um produto
+4. LEIA o texto EXATAMENTE como aparece na imagem
+
+🔍 O QUE PROCURAR VISUALMENTE:
+- Linhas com nomes de produtos seguidos de números
+- Área com múltiplas linhas similares (lista de itens)
+- Valores monetários (R$ ou números decimais)
+- Códigos numéricos antes dos nomes
+
+📝 PARA CADA PRODUTO QUE VOCÊ VÊ:
+- Copie o NOME exatamente como está impresso
+- Extraia a QUANTIDADE (se visível, senão use 1.0)
+- Extraia o PREÇO UNITÁRIO (se visível)
+- Extraia o PREÇO TOTAL
+
+✅ REGRA FUNDAMENTAL:
+Se você VÊ produtos na imagem, você DEVE extrair eles!
+NUNCA retorne lista vazia se houver itens visíveis.
+Mesmo com texto borrado, tente ler o máximo possível.
 
 Retorne JSON:
 {
@@ -22,9 +43,7 @@ Retorne JSON:
   ]
 }
 
-Se não conseguir ler quantidade/preço unitário, use valores do total.
-
-RETORNE PELO MENOS 1 ITEM SE HOUVER PRODUTOS VISÍVEIS NO CUPOM.`
+Use sua capacidade de visão avançada do Gemini para ler TUDO que for possível!`
 
   const messages = [
     {
@@ -48,7 +67,7 @@ RETORNE PELO MENOS 1 ITEM SE HOUVER PRODUTOS VISÍVEIS NO CUPOM.`
       Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gemini-2.0-flash-exp',
       messages,
       max_tokens: 3000,
       temperature: 0.2,
@@ -71,7 +90,8 @@ RETORNE PELO MENOS 1 ITEM SE HOUVER PRODUTOS VISÍVEIS NO CUPOM.`
   return parsed?.itens || parsed?.items || []
 }
 
-// Função para processar documento com LLM (substitui Azure OCR)
+// Função para processar documento com LLM
+// Usa Gemini 2.0 Flash - modelo com excelentes capacidades de OCR e visão computacional
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   try {
     // Baixar arquivo
@@ -84,13 +104,15 @@ async function processDocumentWithLLM(fileUrl: string, fileType: string) {
     // Para PDFs, enviar como file data; para imagens, como image_url
     const isImage = fileType?.startsWith('image/')
     
-    const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS.
+    const promptText = `Você é um especialista em OCR de CUPONS FISCAIS BRASILEIROS usando visão computacional avançada.
 
-TAREFA CRÍTICA: Extrair TODOS os produtos/itens visíveis no cupom fiscal.
+TAREFA CRÍTICA: Analisar a IMAGEM do cupom fiscal e extrair TODOS os produtos/itens visíveis.
 
-🔍 ANÁLISE DO CUPOM FISCAL:
+🔍 ANÁLISE VISUAL DO CUPOM FISCAL:
 
-Veja a imagem com atenção e identifique:
+IMPORTANTE: Você está vendo a IMAGEM REAL do cupom. Leia o texto EXATAMENTE como aparece na imagem.
+
+Identifique visualmente:
 
 1️⃣ CABEÇALHO (Topo do cupom):
    - Nome do estabelecimento (geralmente em MAIÚSCULAS)
@@ -98,22 +120,36 @@ Veja a imagem com atenção e identifique:
    - Endereço e dados da loja
 
 2️⃣ CORPO (Meio do cupom) - ÁREA MAIS IMPORTANTE:
-   ⚠️ CADA LINHA DE PRODUTO GERALMENTE CONTÉM:
+   
+   ⚠️ USE SUA VISÃO COMPUTACIONAL:
+   - Identifique VISUALMENTE cada linha de produto
+   - Leia o texto EXATAMENTE como está impresso
+   - Produtos geralmente aparecem em linhas sequenciais
+   - Cada produto tem um nome e valor associado
+   
+   📝 PADRÕES VISUAIS COMUNS:
    
    Padrão A: NOME DO PRODUTO    QTD x PREÇO = TOTAL
-   Exemplo: "TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
+   Exemplo visual: "TOMATE ITALIANO KG  1.500 x 8.90 = 13.35"
    
    Padrão B: COD  DESCRIÇÃO    QTD  UN  VL UNIT  VL TOTAL
-   Exemplo: "001  ARROZ TIPO 1    2   KG   4.50    9.00"
+   Exemplo visual: "001  ARROZ TIPO 1    2   KG   4.50    9.00"
    
    Padrão C: PRODUTO              QUANT   VALOR
-   Exemplo: "FEIJAO PRETO 1KG     1 UN    6.50"
+   Exemplo visual: "FEIJAO PRETO 1KG     1 UN    6.50"
 
-   🎯 ONDE PROCURAR OS ITENS:
-   - Entre o cabeçalho e "SUBTOTAL" ou "TOTAL"
-   - Linhas com valores em R$
-   - Linhas que começam com códigos ou nomes de produtos
-   - Área com várias linhas de texto seguidas
+   🎯 LOCALIZE VISUALMENTE A ÁREA DE ITENS:
+   - Está ENTRE o cabeçalho (topo) e o total (rodapé)
+   - Linhas que contêm valores monetários (R$ ou números decimais)
+   - Linhas que começam com códigos numéricos ou nomes
+   - Área com múltiplas linhas de texto semelhantes
+   - Geralmente a maior seção do cupom
+   
+   ⚠️ INSTRUÇÕES DE LEITURA VISUAL:
+   - LEIA LINHA POR LINHA da área central
+   - NÃO pule nenhuma linha com produto
+   - Se o texto estiver borrado, tente ler o que for possível
+   - Priorize a extração de TODOS os itens, mesmo que alguns dados estejam incompletos
 
 3️⃣ RODAPÉ (Final do cupom):
    - SUBTOTAL
@@ -220,7 +256,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
         Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gemini-2.0-flash-exp',
         messages,
         max_tokens: 4000,
         temperature: 0.1,
