@@ -49,6 +49,24 @@ export async function GET(request: NextRequest) {
       take: limit,
     })
 
+    // Se não encontrou resultados, buscar produtos similares/recentes para sugerir
+    let suggestions: string[] = []
+    if (history.length === 0) {
+      const recentProducts = await prisma.purchaseItem.groupBy({
+        by: ['productName'],
+        _count: {
+          productName: true,
+        },
+        orderBy: {
+          _count: {
+            productName: 'desc',
+          },
+        },
+        take: 10,
+      })
+      suggestions = recentProducts.map(p => p.productName)
+    }
+
     // Calcular estatísticas
     const stats = {
       totalCompras: history.length,
@@ -106,6 +124,7 @@ export async function GET(request: NextRequest) {
         purchaseId: item.purchase.id,
       })),
       porFornecedor: Object.values(porFornecedor),
+      suggestions: suggestions.length > 0 ? suggestions : undefined,
     })
   } catch (error) {
     console.error('Erro ao buscar histórico do produto:', error)

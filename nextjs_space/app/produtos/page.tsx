@@ -23,19 +23,53 @@ export default function ProdutosPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState('')
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; count: number }>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [mostBought, setMostBought] = useState<Array<{ name: string; count: number }>>([])
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
+  // Carregar produtos mais comprados ao montar o componente
+  useEffect(() => {
+    fetch('/api/products/search')
+      .then(res => res.json())
+      .then(result => {
+        setMostBought(result.products || [])
+      })
+      .catch(err => console.error('Erro ao carregar produtos mais comprados:', err))
+  }, [])
+
+  // Autocomplete - buscar sugestões enquanto digita
+  useEffect(() => {
+    if (searchTerm.trim().length >= 2) {
+      const timer = setTimeout(() => {
+        fetch(`/api/products/search?q=${encodeURIComponent(searchTerm)}&limit=8`)
+          .then(res => res.json())
+          .then(result => {
+            setSuggestions(result.products || [])
+            setShowSuggestions(true)
+          })
+          .catch(err => console.error('Erro ao buscar sugestões:', err))
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [searchTerm])
+
+  const handleSearch = async (term?: string) => {
+    const searchValue = term || searchTerm
+    if (!searchValue.trim()) {
       setError('Digite o nome de um produto')
       return
     }
 
     setLoading(true)
     setError('')
+    setShowSuggestions(false)
 
     try {
       const response = await fetch(
-        `/api/products/history?productName=${encodeURIComponent(searchTerm)}&limit=100`
+        `/api/products/history?productName=${encodeURIComponent(searchValue)}&limit=100`
       )
       
       if (!response.ok) {
@@ -50,6 +84,12 @@ export default function ProdutosPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const selectSuggestion = (name: string) => {
+    setSearchTerm(name)
+    setShowSuggestions(false)
+    handleSearch(name)
   }
 
   return (
@@ -67,31 +107,116 @@ export default function ProdutosPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex gap-4">
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 <Input
-                  placeholder="Digite parte do nome do produto (ex: QUEIJO, PARMESÃO, ARROZ, FEIJÃO, ÓLEO...)"
+                  placeholder="Digite como o produto aparece no cupom (ex: QJ, CR, SAL, LA, AGUA...)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 />
+                
+                {/* Autocomplete Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {suggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        className="w-full text-left px-4 py-2 hover:bg-muted flex justify-between items-center"
+                        onClick={() => selectSuggestion(suggestion.name)}
+                      >
+                        <span className="font-medium">{suggestion.name}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {suggestion.count}x comprado
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Button onClick={handleSearch} disabled={loading}>
+              <Button onClick={() => handleSearch()} disabled={loading}>
                 <Search className="mr-2 h-4 w-4" />
                 {loading ? 'Buscando...' : 'Buscar'}
               </Button>
             </div>
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-            <div className="mt-3 text-sm text-muted-foreground">
+            <div className="mt-3 text-sm text-muted-foreground space-y-2">
               <p>
-                💡 <strong>Dica:</strong> Pesquise pelo nome do produto completo ou parte dele. 
-                Por exemplo: "Queijo Parmesão" ou apenas "Queijo" ou "Parmesão"
+                💡 <strong>Importante:</strong> Os produtos são salvos com os nomes <strong>abreviados</strong> que aparecem no cupom fiscal.
+              </p>
+              <p>
+                Por exemplo: <span className="font-mono bg-muted px-2 py-0.5 rounded">QJ PARRI PED NOAL</span> = Queijo Parmesão Pedaços Noal
+              </p>
+              <p>
+                Pesquise por: <span className="font-mono bg-muted px-1 rounded">QJ</span> (queijo), 
+                <span className="font-mono bg-muted px-1 rounded ml-1">CR</span> (creme), 
+                <span className="font-mono bg-muted px-1 rounded ml-1">LA</span> (lã/produto limpeza),
+                <span className="font-mono bg-muted px-1 rounded ml-1">SAL</span>, 
+                <span className="font-mono bg-muted px-1 rounded ml-1">AGUA</span>, etc.
               </p>
             </div>
           </CardContent>
         </Card>
 
+        {/* Produtos Mais Comprados - Mostrar quando não há busca ativa */}
+        {!data && !loading && mostBought.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Produtos Mais Comprados</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Clique em um produto para ver seu histórico
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2 md:grid-cols-2">
+                {mostBought.map((product, idx) => (
+                  <button
+                    key={idx}
+                    className="text-left px-4 py-3 border rounded-lg hover:bg-muted transition-colors flex justify-between items-center"
+                    onClick={() => selectSuggestion(product.name)}
+                  >
+                    <span className="font-mono font-medium">{product.name}</span>
+                    <Badge variant="outline">{product.count}x</Badge>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No Results - Show Suggestions */}
+        {data && data.stats.totalCompras === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Nenhum resultado encontrado para "{data.productName}"</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Produto não encontrado no histórico. Tente pesquisar com as abreviações do cupom fiscal.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {data.suggestions && data.suggestions.length > 0 && (
+                <div className="space-y-3">
+                  <p className="font-medium">Produtos disponíveis no sistema:</p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {data.suggestions.map((suggestion: string, idx: number) => (
+                      <button
+                        key={idx}
+                        className="text-left px-4 py-3 border rounded-lg hover:bg-muted transition-colors"
+                        onClick={() => selectSuggestion(suggestion)}
+                      >
+                        <span className="font-mono font-medium">{suggestion}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Results */}
-        {data && (
+        {data && data.stats.totalCompras > 0 && (
           <>
             {/* Statistics Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
