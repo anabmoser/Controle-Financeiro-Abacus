@@ -103,13 +103,35 @@ export default function ProdutosPage() {
           </p>
         </div>
 
+        {/* Info Box */}
+        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900">
+          <CardContent className="pt-6">
+            <div className="text-sm space-y-2">
+              <p className="font-medium text-blue-900 dark:text-blue-100">
+                💡 Como funciona a busca:
+              </p>
+              <p className="text-blue-800 dark:text-blue-200">
+                Os produtos são salvos com os <strong>nomes abreviados</strong> do cupom fiscal.
+                Por exemplo: <span className="font-mono bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">QJ PARRI PED NOAL</span> = Queijo Parmesão Pedaços Noal
+              </p>
+              <p className="text-blue-800 dark:text-blue-200">
+                Digite a abreviação: <span className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded">QJ</span> (queijo), 
+                <span className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded ml-1">CR</span> (creme), 
+                <span className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded ml-1">LA</span> (lã/limpeza),
+                <span className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded ml-1">SAL</span>, 
+                <span className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded ml-1">AGUA</span>, etc.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Search */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex gap-4">
               <div className="flex-1 relative">
                 <Input
-                  placeholder="Digite como o produto aparece no cupom (ex: QJ, CR, SAL, LA, AGUA...)"
+                  placeholder="Digite a abreviação do produto (ex: QJ, CR, SAL, LA, AGUA...)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -141,21 +163,6 @@ export default function ProdutosPage() {
               </Button>
             </div>
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-            <div className="mt-3 text-sm text-muted-foreground space-y-2">
-              <p>
-                💡 <strong>Importante:</strong> Os produtos são salvos com os nomes <strong>abreviados</strong> que aparecem no cupom fiscal.
-              </p>
-              <p>
-                Por exemplo: <span className="font-mono bg-muted px-2 py-0.5 rounded">QJ PARRI PED NOAL</span> = Queijo Parmesão Pedaços Noal
-              </p>
-              <p>
-                Pesquise por: <span className="font-mono bg-muted px-1 rounded">QJ</span> (queijo), 
-                <span className="font-mono bg-muted px-1 rounded ml-1">CR</span> (creme), 
-                <span className="font-mono bg-muted px-1 rounded ml-1">LA</span> (lã/produto limpeza),
-                <span className="font-mono bg-muted px-1 rounded ml-1">SAL</span>, 
-                <span className="font-mono bg-muted px-1 rounded ml-1">AGUA</span>, etc.
-              </p>
-            </div>
           </CardContent>
         </Card>
 
