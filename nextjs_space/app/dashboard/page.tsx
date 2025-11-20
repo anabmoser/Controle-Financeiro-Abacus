@@ -10,9 +10,15 @@ import {
   ShoppingCart,
   TrendingUp,
   Package,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import dynamic from 'next/dynamic'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const PieChart = dynamic(
   () => import('@/components/charts/pie-chart').then((mod) => mod.default),
@@ -38,19 +44,47 @@ interface DashboardStats {
   evolucaoMensal: Array<{ month: string; value: number }>
 }
 
+type PeriodType = 'current_month' | 'last_month' | '7' | 'custom'
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState('30')
+  const [period, setPeriod] = useState<PeriodType>('current_month')
+  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({})
+  const [showCalendar, setShowCalendar] = useState(false)
 
   useEffect(() => {
     loadStats()
-  }, [period])
+  }, [period, customDateRange])
+
+  function calculatePeriodDays(): string {
+    const now = new Date()
+    
+    if (period === 'current_month') {
+      // Primeiro dia do mês atual
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const diffTime = Math.abs(now.getTime() - startOfMonth.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays.toString()
+    } else if (period === 'last_month') {
+      // Mês passado completo (30 dias aproximado)
+      return '30'
+    } else if (period === '7') {
+      return '7'
+    } else if (period === 'custom' && customDateRange.from && customDateRange.to) {
+      const diffTime = Math.abs(customDateRange.to.getTime() - customDateRange.from.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays.toString()
+    }
+    
+    return '30' // fallback
+  }
 
   async function loadStats() {
     try {
       setLoading(true)
-      const response = await fetch(`/api/dashboard/stats?period=${period}`)
+      const periodDays = calculatePeriodDays()
+      const response = await fetch(`/api/dashboard/stats?period=${periodDays}`)
       const data = await response.json()
       setStats(data)
     } catch (error) {
@@ -58,6 +92,16 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function getPeriodLabel(): string {
+    if (period === 'current_month') return 'Este mês'
+    if (period === 'last_month') return 'Mês passado'
+    if (period === '7') return 'Últimos 7 dias'
+    if (period === 'custom' && customDateRange.from && customDateRange.to) {
+      return `${format(customDateRange.from, 'dd/MM/yy', { locale: ptBR })} - ${format(customDateRange.to, 'dd/MM/yy', { locale: ptBR })}`
+    }
+    return 'Personalizado'
   }
 
   if (loading) {
@@ -76,16 +120,71 @@ export default function DashboardPage() {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="input w-48"
-          >
-            <option value="7">Últimos 7 dias</option>
-            <option value="30">Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
-            <option value="365">Último ano</option>
-          </select>
+          
+          <div className="flex gap-2">
+            <select
+              value={period}
+              onChange={(e) => {
+                const newPeriod = e.target.value as PeriodType
+                setPeriod(newPeriod)
+                if (newPeriod !== 'custom') {
+                  setCustomDateRange({})
+                  setShowCalendar(false)
+                }
+              }}
+              className="input w-48"
+            >
+              <option value="current_month">Este mês</option>
+              <option value="last_month">Mês passado</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="custom">Personalizado</option>
+            </select>
+
+            {period === 'custom' && (
+              <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-64">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {getPeriodLabel()}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Data Inicial</label>
+                      <Calendar
+                        mode="single"
+                        selected={customDateRange.from}
+                        onSelect={(date) => {
+                          setCustomDateRange(prev => ({ ...prev, from: date }))
+                        }}
+                        locale={ptBR}
+                        disabled={(date) => date > new Date()}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Data Final</label>
+                      <Calendar
+                        mode="single"
+                        selected={customDateRange.to}
+                        onSelect={(date) => {
+                          setCustomDateRange(prev => ({ ...prev, to: date }))
+                          if (date) {
+                            setShowCalendar(false)
+                          }
+                        }}
+                        locale={ptBR}
+                        disabled={(date) => 
+                          date > new Date() || 
+                          (customDateRange.from ? date < customDateRange.from : false)
+                        }
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
 
         {/* KPIs */}
