@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
       stats,
       history: history.map((item) => ({
         id: item.id,
+        produto: item.productName, // Nome do produto
         data: item.purchase.purchaseDate,
         fornecedor: item.purchase.supplierName,
         cnpj: item.purchase.supplierCnpj,

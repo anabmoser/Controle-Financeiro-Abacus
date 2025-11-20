@@ -69,7 +69,7 @@ export default function ProdutosPage() {
             <div className="flex gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Digite o nome do produto (ex: ARROZ, FEIJÃO, ÓLEO...)"
+                  placeholder="Digite parte do nome do produto (ex: QUEIJO, PARMESÃO, ARROZ, FEIJÃO, ÓLEO...)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -81,6 +81,12 @@ export default function ProdutosPage() {
               </Button>
             </div>
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            <div className="mt-3 text-sm text-muted-foreground">
+              <p>
+                💡 <strong>Dica:</strong> Pesquise pelo nome do produto completo ou parte dele. 
+                Por exemplo: "Queijo Parmesão" ou apenas "Queijo" ou "Parmesão"
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -190,6 +196,7 @@ export default function ProdutosPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
+                      <TableHead>Produto</TableHead>
                       <TableHead>Fornecedor</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
                       <TableHead className="text-right">Preço Unit.</TableHead>
@@ -201,6 +208,9 @@ export default function ProdutosPage() {
                     {data.history.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell>{formatDate(item.data)}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{item.produto}</div>
+                        </TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">{item.fornecedor}</p>
