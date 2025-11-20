@@ -148,8 +148,8 @@ export default function DashboardPage() {
                     {getPeriodLabel()}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <div className="p-4 space-y-4">
+                <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-950 opacity-100" align="end">
+                  <div className="p-4 space-y-4 bg-white dark:bg-gray-950">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Data Inicial</label>
                       <Calendar
