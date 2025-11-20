@@ -13,6 +13,7 @@ import {
   DollarSign,
   ShoppingCart,
   Package,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import {
   Table,
@@ -23,22 +24,48 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+type PeriodType = 'current_month' | 'last_month' | '7' | 'custom'
 
 export default function RelatoriosPage() {
-  const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month')
+  const [period, setPeriod] = useState<PeriodType>('current_month')
+  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({})
+  const [showCalendar, setShowCalendar] = useState(false)
   const [compare, setCompare] = useState(true)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
+  
+  // Convert new period type to old API format
+  function getApiPeriodType(): 'week' | 'month' | 'year' {
+    if (period === '7') return 'week'
+    if (period === 'current_month' || period === 'last_month' || period === 'custom') return 'month'
+    return 'month'
+  }
 
   useEffect(() => {
     fetchReport()
-  }, [period, compare])
+  }, [period, compare, customDateRange])
+
+  function getPeriodLabel(): string {
+    if (period === 'current_month') return 'Este mês'
+    if (period === 'last_month') return 'Mês passado'
+    if (period === '7') return 'Últimos 7 dias'
+    if (period === 'custom' && customDateRange.from && customDateRange.to) {
+      return `${format(customDateRange.from, 'dd/MM/yy', { locale: ptBR })} - ${format(customDateRange.to, 'dd/MM/yy', { locale: ptBR })}`
+    }
+    return 'Personalizado'
+  }
 
   const fetchReport = async () => {
     setLoading(true)
     try {
+      const apiPeriod = getApiPeriodType()
       const response = await fetch(
-        `/api/reports/summary?type=${period}&compare=${compare}`
+        `/api/reports/summary?type=${apiPeriod}&compare=${compare}`
       )
       const result = await response.json()
       setData(result)
@@ -68,28 +95,72 @@ export default function RelatoriosPage() {
           <div>
             <h1 className="text-3xl font-bold">Relatórios</h1>
             <p className="text-muted-foreground">
-              Análises semanais, mensais e anuais
+              Análises e comparativos de períodos
             </p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={period === 'week' ? 'default' : 'outline'}
-              onClick={() => setPeriod('week')}
+            <select
+              value={period}
+              onChange={(e) => {
+                const newPeriod = e.target.value as PeriodType
+                setPeriod(newPeriod)
+                if (newPeriod !== 'custom') {
+                  setCustomDateRange({})
+                  setShowCalendar(false)
+                }
+              }}
+              className="input w-48"
             >
-              Semanal
-            </Button>
-            <Button
-              variant={period === 'month' ? 'default' : 'outline'}
-              onClick={() => setPeriod('month')}
-            >
-              Mensal
-            </Button>
-            <Button
-              variant={period === 'year' ? 'default' : 'outline'}
-              onClick={() => setPeriod('year')}
-            >
-              Anual
-            </Button>
+              <option value="current_month">Este mês</option>
+              <option value="last_month">Mês passado</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="custom">Personalizado</option>
+            </select>
+
+            {period === 'custom' && (
+              <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-64">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {getPeriodLabel()}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-950 opacity-100" align="end">
+                  <div className="p-4 space-y-4 bg-white dark:bg-gray-950">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Data Inicial</label>
+                      <Calendar
+                        mode="single"
+                        selected={customDateRange.from}
+                        onSelect={(date) => {
+                          setCustomDateRange(prev => ({ ...prev, from: date }))
+                        }}
+                        locale={ptBR}
+                        disabled={(date) => date > new Date()}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Data Final</label>
+                      <Calendar
+                        mode="single"
+                        selected={customDateRange.to}
+                        onSelect={(date) => {
+                          setCustomDateRange(prev => ({ ...prev, to: date }))
+                          if (date) {
+                            setShowCalendar(false)
+                          }
+                        }}
+                        locale={ptBR}
+                        disabled={(date) => 
+                          date > new Date() || 
+                          (customDateRange.from ? date < customDateRange.from : false)
+                        }
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         </div>
 
