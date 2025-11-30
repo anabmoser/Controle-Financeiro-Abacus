@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { normalizeProductName } from '@/lib/formatters'
+import { categorizeProduct } from '@/lib/categorization'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Buscar todas as categorias disponíveis para categorização automática
+    const categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+    })
+
+    console.log(`🤖 Auto-categorização: ${categories.length} categorias disponíveis`)
 
     // Criar a compra
     const purchase = await prisma.purchase.create({
@@ -35,35 +46,56 @@ export async function POST(request: NextRequest) {
       data: { purchaseId: purchase.id },
     })
 
-    // Criar itens da compra
+    // Criar itens da compra com categorização automática
     if (ocrData?.items && Array.isArray(ocrData.items)) {
       for (const item of ocrData.items) {
-        // Buscar ou criar produto
-        const normalizedName = normalizeProductName(item?.name || '')
+        const productName = item?.name || 'Produto'
+        const normalizedName = normalizeProductName(productName)
+        
+        // Buscar produto existente
         let product = await prisma.product.findFirst({
           where: { normalizedName },
         })
 
+        let categoryId: string | null = null
+
         if (!product) {
-          // Criar novo produto
+          // 🤖 CATEGORIZAÇÃO AUTOMÁTICA via IA
+          if (categories.length > 0) {
+            const categorizationResult = await categorizeProduct(productName, categories)
+            categoryId = categorizationResult.categoryId
+            
+            if (categoryId) {
+              console.log(`✅ "${productName}" → ${categorizationResult.categoryName} (${(categorizationResult.confidence * 100).toFixed(0)}%)`)
+            } else {
+              console.log(`⚠️  "${productName}" → Sem categoria (IA não conseguiu categorizar)`)
+            }
+          }
+
+          // Criar novo produto com categoria
           product = await prisma.product.create({
             data: {
-              name: item?.name || 'Produto',
+              name: productName,
               normalizedName,
               unit: 'un',
+              categoryId: categoryId,
             },
           })
+        } else {
+          // Produto já existe, usar a categoria dele
+          categoryId = product.categoryId
         }
 
-        // Criar item da compra
+        // Criar item da compra com categoria
         await prisma.purchaseItem.create({
           data: {
             purchaseId: purchase.id,
             productId: product.id,
-            productName: item?.name || 'Produto',
+            productName: productName,
             quantity: item?.quantity || 1,
             unitPrice: item?.unitPrice || 0,
             totalPrice: item?.totalPrice || 0,
+            categoryId: categoryId,
           },
         })
       }
