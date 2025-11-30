@@ -1,69 +1,29 @@
-# 🛠️ Como Executar o Script SQL Corrigido
+# 🛑️ Como Executar o Script SQL em 2 Etapas
 
-## ⚠️ Problema Identificado
+## ⚠️ Por Que 2 Etapas?
 
-O script anterior usava `CREATE TABLE IF NOT EXISTS`, mas as tabelas antigas já existiam **sem a coluna `normalized_name`**. O novo script **FORÇA a recriação** de todas as tabelas.
+O script anterior falhava porque tentava criar constraints em tabelas que ainda não tinham sido completamente recriadas. Para evitar isso, vamos executar em **2 etapas separadas**:
 
----
-
-## ✅ Passo a Passo
-
-### 1️⃣ Abrir o Script Corrigido
-
-O arquivo está em:
-```
-/home/ubuntu/controle_compras_restaurante/supabase_schema_fix.sql
-```
-
-Ou acesse no GitHub:
-```
-https://github.com/anabmoser/Controle-Financeiro-Abacus/blob/main/supabase_schema_fix.sql
-```
-
-### 2️⃣ Copiar Todo o Conteúdo
-
-Abra o arquivo e copie **TODO O CONTEÚDO** (152 linhas).
-
-### 3️⃣ Executar no Supabase SQL Editor
-
-1. Acesse: https://supabase.com/dashboard/project/ixyxegpijupehxykntck
-2. No menu lateral, clique em **SQL Editor**
-3. Cole todo o conteúdo do script
-4. Clique no botão verde **"RUN"** no canto superior direito
-
-### 4️⃣ Verificar a Execução
-
-Após executar, você deve ver:
-```
-✅ Success. No rows returned
-```
-
-### 5️⃣ Confirmar as Tabelas Criadas
-
-Execute esta query no SQL Editor:
-
-```sql
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public'
-ORDER BY table_name;
-```
-
-**Resultado esperado (5 tabelas):**
-```
-✓ categories
-✓ products
-✓ purchase_items
-✓ purchases
-✓ receipts
-```
+1. **ETAPA 1**: Limpar todas as tabelas antigas
+2. **ETAPA 2**: Criar as tabelas novas corretas
 
 ---
 
-## 🔍 O que o Script Faz?
+# 🟦 ETAPA 1: Limpar Tudo
 
-### **PASSO 1: Remove Tabelas Antigas**
+## 1️⃣ Abrir o Arquivo
+
+```
+ETAPA_1_LIMPAR_TUDO.sql
+```
+
+## 2️⃣ Copiar o Conteúdo
+
 ```sql
+-- =============================================
+-- ETAPA 1: LIMPAR TODAS AS TABELAS
+-- =============================================
+
 DROP TABLE IF EXISTS "receipts" CASCADE;
 DROP TABLE IF EXISTS "purchase_items" CASCADE;
 DROP TABLE IF EXISTS "purchases" CASCADE;
@@ -74,49 +34,82 @@ DROP TABLE IF EXISTS "product_aliases" CASCADE;
 DROP TABLE IF EXISTS "suppliers" CASCADE;
 ```
 
-### **PASSO 2: Cria 5 Tabelas Novas**
-- ✅ `categories` - Categorias de produtos
-- ✅ `products` - Catálogo normalizado (com `normalized_name`)
-- ✅ `purchases` - Registro de compras
-- ✅ `purchase_items` - Itens individuais das compras
-- ✅ `receipts` - Metadados dos cupons fiscais
+## 3️⃣ Executar no Supabase
 
-### **PASSO 3: Cria 8 Índices**
-- Performance otimizada para buscas e relatórios
-
-### **PASSO 4: Estabelece 5 Foreign Keys**
-- Integridade referencial entre tabelas
+1. Acesse: https://supabase.com/dashboard/project/ixyxegpijupehxykntck
+2. Clique em **SQL Editor**
+3. Cole o script da ETAPA 1
+4. Clique em **RUN** (botão verde)
+5. Aguarde a mensagem: **✅ Success. No rows returned**
 
 ---
 
-## 📊 Após a Execução
+# 🟩 ETAPA 2: Criar Tabelas Novas
 
-Quando você confirmar que as 5 tabelas foram criadas corretamente, **me avise** e eu farei:
+## ⚠️ **IMPORTANTE: Só execute após a ETAPA 1 ter sido concluída com sucesso!**
 
-1. ✅ Teste de conexão ao banco
-2. ✅ Validação de todas as funcionalidades
-3. ✅ Deploy final em produção
-4. ✅ App 100% operacional! 🎉
+## 1️⃣ Abrir o Arquivo
+
+```
+ETAPA_2_CRIAR_TABELAS.sql
+```
+
+## 2️⃣ Copiar TODO o Conteúdo
+
+Este arquivo é maior (152 linhas). Copie **TODO O CONTEÚDO** do arquivo.
+
+## 3️⃣ Executar no Supabase
+
+1. No mesmo **SQL Editor**
+2. **Limpe o editor** (delete o script da ETAPA 1)
+3. Cole o script da ETAPA 2
+4. Clique em **RUN** (botão verde)
+5. Aguarde a mensagem: **✅ Success. No rows returned**
 
 ---
 
-## 🆘 Se Houver Erro
+# 🔍 Verificar Sucesso
 
-Se aparecer algum erro durante a execução:
+Após executar as 2 etapas, confirme que tudo funcionou:
 
-1. Tire um print da tela com a mensagem de erro
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public'
+ORDER BY table_name;
+```
+
+**Resultado esperado (5 tabelas):**
+```
+✅ categories
+✅ products
+✅ purchase_items
+✅ purchases
+✅ receipts
+```
+
+---
+
+# ✅ Próximos Passos
+
+Quando você confirmar que as 5 tabelas foram criadas:
+
+1. ✅ Me avise
+2. ✅ Farei o teste de conexão
+3. ✅ Validarei todas as funcionalidades
+4. ✅ Deploy final em produção
+5. ✅ App 100% operacional! 🎉
+
+---
+
+# 🆘 Se Houver Erro
+
+Se qualquer uma das etapas falhar:
+
+1. Tire um print da tela
 2. Me envie o print
 3. Vou diagnosticar e corrigir
 
 ---
 
-## 📝 Observações Importantes
-
-- ⚠️ Este script vai **APAGAR** todos os dados atuais das tabelas antigas
-- ✅ Isso é necessário porque as tabelas antigas não eram compatíveis com o app
-- ✅ O app vai começar com banco de dados limpo e estrutura correta
-- ✅ Após a execução, todos os uploads e OCR funcionarão perfeitamente
-
----
-
-**Aguardando sua confirmação para prosseguir! 🚀**
+**Aguardando sua confirmação! 🚀**
