@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { addDays } from 'date-fns';
 
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic';
+
 // GET - Boletos próximos ao vencimento
 export async function GET(request: NextRequest) {
   try {

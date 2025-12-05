@@ -3,6 +3,9 @@ import { prisma } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/library';
 
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic';
+
 // GET - Estatísticas de boletos
 export async function GET() {
   try {

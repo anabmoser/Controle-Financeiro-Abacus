@@ -1,259 +1,378 @@
-# 📋 Guia do Módulo de Boletos e Fornecedores
+# 📋 Controle de Boletos a Pagar - Guia Completo
 
 ## 🎯 Visão Geral
 
-O módulo de **Boletos a Pagar** foi implementado com sucesso no sistema de Controle Financeiro do Restaurante. Agora você pode gerenciar completamente seus boletos, fornecedores e ter alertas automáticos de vencimento.
+O **Controle de Boletos a Pagar** é um módulo completamente automatizado que permite gerenciar boletos através de upload e extração automática de dados via OCR com Inteligência Artificial.
 
 ---
 
-## ✨ Funcionalidades Implementadas
+## ✅ Problema Resolvido
 
-### 1. **Gestão de Fornecedores** 📇
-
-#### Página: `/fornecedores`
-
-**Recursos:**
-- ✅ Cadastro completo de fornecedores
-- ✅ Edição de informações
-- ✅ Exclusão de fornecedores
-- ✅ Busca por nome ou CNPJ
-- ✅ Visualização de quantos boletos cada fornecedor possui
-
-**Campos disponíveis:**
-- Nome do fornecedor (obrigatório)
-- CNPJ
-- E-mail
-- Telefone
-- Endereço
-- Pessoa de contato
-- Observações
-- Status (Ativo/Inativo)
-
-**Como usar:**
-1. Acesse a aba **"Fornecedores"** no menu
-2. Clique em **"Novo Fornecedor"**
-3. Preencha os dados do fornecedor
-4. Clique em **"Cadastrar"**
-
----
-
-### 2. **Gestão de Boletos** 💰
-
-#### Página: `/boletos`
-
-**Recursos:**
-- ✅ Cadastro de boletos com upload de arquivo
-- ✅ Controle de parcelas
-- ✅ Filtros por status e fornecedor
-- ✅ Marcação de boleto como pago
-- ✅ Exclusão de boletos
-- ✅ Download dos arquivos anexados
-- ✅ Alertas visuais de vencimento
-
-**Campos disponíveis:**
-- Fornecedor (obrigatório)
-- Descrição (obrigatório)
-- Valor total (obrigatório)
-- Data de vencimento (obrigatório)
-- Número do boleto
-- Data de emissão
-- Número de parcelas
-- Arquivo do boleto (PDF ou imagem)
-- Observações
-
-**Status dos boletos:**
-- 🔵 **Pendente** - Mais de 3 dias para vencer
-- 🟡 **Vence em breve** - Até 3 dias para vencer
-- 🔴 **Vencido** - Prazo já passou
-- 🟢 **Pago** - Boleto quitado
-
-**Como cadastrar um boleto:**
-1. Acesse a aba **"Boletos"** no menu
-2. Clique em **"Novo Boleto"**
-3. Selecione o fornecedor (se não existir, cadastre primeiro)
-4. Preencha os dados do boleto
-5. (Opcional) Anexe o arquivo PDF ou imagem do boleto
-6. Clique em **"Cadastrar"**
-
-**Como marcar um boleto como pago:**
-1. Na lista de boletos, encontre o boleto pendente
-2. Clique no botão **"Marcar como Pago"**
-3. O boleto será automaticamente marcado com a data de pagamento
-
----
-
-### 3. **Alertas de Vencimento** ⚠️
-
-#### Dashboard Atualizado
-
-O **Dashboard** agora exibe automaticamente:
-
-**Card Vermelho - Boletos Vencidos:**
-- Lista todos os boletos que já passaram do vencimento
-- Mostra quantos dias estão vencidos
-- Exibe fornecedor e valor
-- Botão para ir direto à página de boletos
-
-**Card Amarelo - Próximos a Vencer:**
-- Lista boletos que vencem nos próximos 7 dias
-- Mostra data de vencimento
-- Exibe fornecedor e valor
-- Botão para ir direto à página de boletos
-
----
-
-## 🗄️ Estrutura do Banco de Dados
-
-### Tabela `suppliers` (Fornecedores)
-```sql
-CREATE TABLE suppliers (
-  id UUID PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  cnpj VARCHAR(18),
-  email VARCHAR(255),
-  phone VARCHAR(20),
-  address TEXT,
-  contact_person VARCHAR(255),
-  notes TEXT,
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+### Erro Identificado
+Quando o app foi acessado pela primeira vez, apresentava o seguinte erro:
+```
+Application error: a client-side exception has occurred
+TypeError: Cannot read properties of undefined (reading 'length')
 ```
 
-### Tabela `bills` (Boletos)
-```sql
-CREATE TABLE bills (
-  id UUID PRIMARY KEY,
-  supplier_id UUID REFERENCES suppliers(id) ON DELETE CASCADE,
-  bill_number VARCHAR(100),
-  description VARCHAR(500) NOT NULL,
-  total_amount DECIMAL(10,2) NOT NULL,
-  installments INT DEFAULT 1,
-  current_installment INT DEFAULT 1,
-  installment_amount DECIMAL(10,2) NOT NULL,
-  due_date TIMESTAMPTZ NOT NULL,
-  issue_date TIMESTAMPTZ,
-  payment_date TIMESTAMPTZ,
-  status VARCHAR(20) DEFAULT 'pending',
-  file_url TEXT,
-  file_name TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+**Erro 500 no Console:**
+```
+Failed to load resource: the server responded with a status of 500 ()
+/api/bills/upcoming?days=7
 ```
 
----
+### Causa do Erro
+O Next.js estava tentando fazer **renderização estática** de rotas API dinâmicas que usam `request.url`, causando erro durante o build:
+```
+Route /api/bills/upcoming couldn't be rendered statically because it used `request.url`
+```
 
-## 🔄 Fluxo de Trabalho Recomendado
+### Solução Aplicada
+Adicionamos a configuração `export const dynamic = 'force-dynamic'` nos endpoints:
+- `/app/api/bills/upcoming/route.ts`
+- `/app/api/bills/stats/route.ts`
 
-### Passo 1: Cadastrar Fornecedores
-Antes de cadastrar boletos, cadastre todos os seus fornecedores principais.
-
-### Passo 2: Cadastrar Boletos
-Ao receber um boleto:
-1. Acesse a página de Boletos
-2. Cadastre com todas as informações
-3. Anexe o arquivo PDF/imagem do boleto
-
-### Passo 3: Monitorar Vencimentos
-- Acesse o Dashboard diariamente
-- Verifique os alertas de boletos vencidos e próximos a vencer
-- Marque como pago após efetuar o pagamento
-
-### Passo 4: Manter Histórico
-Todos os boletos pagos ficam registrados no sistema para consulta futura.
+Isso força a renderização dinâmica server-side, resolvendo o erro 500.
 
 ---
 
-## 📊 APIs Disponíveis
+## 🚀 Funcionalidades
 
-### Fornecedores
-- `GET /api/suppliers` - Lista todos os fornecedores
-- `POST /api/suppliers` - Cria novo fornecedor
-- `PUT /api/suppliers` - Atualiza fornecedor
-- `DELETE /api/suppliers?id={id}` - Deleta fornecedor
+### 1. Upload Automático
+- **Drag & Drop**: Arraste e solte boletos (PDF, JPG, PNG)
+- **Limite**: Máximo 10MB por arquivo
+- **Processamento**: OCR automático extrai todos os dados
 
-### Boletos
-- `GET /api/bills` - Lista boletos (com filtros)
-- `POST /api/bills` - Cria novo boleto (com upload)
-- `PUT /api/bills` - Atualiza boleto
-- `DELETE /api/bills?id={id}` - Deleta boleto
-- `GET /api/bills/upcoming?days=7` - Boletos próximos ao vencimento
-- `GET /api/bills/stats` - Estatísticas de boletos
+### 2. Extração Inteligente via IA
+O sistema usa **GPT-4o da Abacus.AI** para extrair:
+- ✅ Nome do Fornecedor
+- ✅ CNPJ do Fornecedor
+- ✅ Número do Boleto
+- ✅ Código de Barras
+- ✅ Descrição
+- ✅ Valor Total
+- ✅ Data de Vencimento
+- ✅ Data de Emissão
+
+### 3. Dashboard de Estatísticas
+- **Total de Boletos**: Quantidade total cadastrada
+- **Vencidos**: Boletos com vencimento passado (🔴 vermelho)
+- **A Vencer**: Boletos com vencimento próximo (🔵 azul)
+- **Pagos**: Boletos já quitados (🟢 verde)
+- **Total a Pagar**: Soma dos valores pendentes
+
+### 4. Organização por Status
+**Indicadores Visuais:**
+- 🔴 **Vermelho**: Vencido (mostra quantos dias de atraso)
+- 🟡 **Amarelo**: Vence em até 3 dias
+- 🔵 **Azul**: Vence em 4+ dias
+- 🟢 **Verde**: Pago
+
+### 5. Ações Rápidas
+- ✅ **Marcar como Pago**: Clique no botão ✅ quando efetuar o pagamento
+- 📥 **Download**: Baixe o arquivo original do boleto
+- 🗑️ **Excluir**: Remove o boleto do sistema
+
+---
+
+## 📱 Como Usar
+
+### Passo 1: Acessar a Página de Boletos
+```
+https://controle-compras-res-d7yzxl.abacusai.app/boletos
+```
+
+### Passo 2: Fazer Upload
+1. Clique na área de upload ou arraste o arquivo
+2. Aguarde o processamento (≈10 segundos)
+3. O sistema automaticamente:
+   - Faz upload para AWS S3
+   - Processa OCR com IA
+   - Extrai todos os dados
+   - Salva no banco de dados
+
+### Passo 3: Visualizar Boletos
+- Os boletos aparecem organizados por status
+- Use os filtros: **Todos**, **Vencidos**, **A Vencer**, **Pagos**
+
+### Passo 4: Marcar como Pago
+1. Localize o boleto na lista
+2. Clique no botão ✅ **Marcar como Pago**
+3. O boleto muda para status "Pago" (🟢 verde)
+
+---
+
+## 🗂️ Arquitetura Técnica
+
+### Database Schema (Prisma)
+```prisma
+model Bill {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  supplierName  String    // Nome do fornecedor (OCR)
+  supplierCnpj  String?   // CNPJ do fornecedor (OCR)
+  billNumber    String?   // Número do boleto (OCR)
+  barCode       String?   // Código de barras (OCR)
+  description   String?   // Descrição (OCR)
+  totalAmount   Decimal   // Valor total (OCR)
+  dueDate       DateTime  // Data de vencimento (OCR)
+  issueDate     DateTime? // Data de emissão (OCR)
+  paymentDate   DateTime? // Data do pagamento (manual)
+  status        String    @default("pending") // pending/paid
+  
+  // Arquivo
+  fileUrl       String    // URL no S3
+  fileName      String
+  fileSize      BigInt?
+  fileType      String?
+  
+  // OCR
+  ocrStatus     String    @default("pending") // pending/processing/completed/error
+  ocrResult     Json?     // Resultado completo do OCR
+  ocrError      String?   // Mensagem de erro do OCR
+  notes         String?   // Observações manuais
+  
+  @@map("bills")
+}
+```
+
+### API Endpoints
+
+#### 1. Upload de Boleto
+```typescript
+POST /api/bills/upload
+Content-Type: multipart/form-data
+
+Response:
+{
+  "billId": "uuid",
+  "message": "Upload concluído. Processando OCR..."
+}
+```
+
+#### 2. Processamento OCR
+```typescript
+POST /api/bills/ocr
+Body: { "billId": "uuid" }
+
+Response:
+{
+  "success": true,
+  "data": {
+    "supplierName": "Empresa XYZ Ltda",
+    "cnpj": "12.345.678/0001-90",
+    "billNumber": "123456",
+    "barCode": "23793381286005001201778309012345678901234567",
+    "description": "Fornecimento de materiais",
+    "totalAmount": 1500.00,
+    "dueDate": "2025-12-15",
+    "issueDate": "2025-12-01"
+  }
+}
+```
+
+#### 3. Listar Boletos
+```typescript
+GET /api/bills?status=pending&month=12&year=2025
+
+Response:
+{
+  "bills": [
+    {
+      "id": "uuid",
+      "supplierName": "Empresa XYZ",
+      "totalAmount": 1500.00,
+      "dueDate": "2025-12-15",
+      "status": "pending",
+      "daysUntilDue": 10
+    }
+  ]
+}
+```
+
+#### 4. Atualizar Boleto
+```typescript
+PUT /api/bills
+Body: { 
+  "id": "uuid", 
+  "status": "paid",
+  "paymentDate": "2025-12-05"
+}
+
+Response:
+{
+  "success": true,
+  "bill": { ... }
+}
+```
+
+#### 5. Estatísticas
+```typescript
+GET /api/bills/stats
+
+Response:
+{
+  "pendingCount": 5,
+  "overdueCount": 2,
+  "paidCount": 10,
+  "totalPending": 7500.00,
+  "totalOverdue": 3000.00,
+  "totalPaid": 15000.00
+}
+```
+
+#### 6. Boletos Próximos ao Vencimento
+```typescript
+GET /api/bills/upcoming?days=7
+
+Response:
+{
+  "upcoming": [ ... ],  // Vence nos próximos 7 dias
+  "overdue": [ ... ],   // Já vencidos
+  "total": 8
+}
+```
 
 ---
 
 ## 🎨 Interface
 
-### Cores e Indicadores
+### Cores por Status
+```css
+/* Vencido */
+.overdue {
+  background: #fee2e2; /* red-100 */
+  border: #ef4444;     /* red-500 */
+}
 
-**Status dos Boletos:**
-- 🔵 Azul - Pendente (mais de 3 dias)
-- 🟡 Amarelo - Vence em breve (até 3 dias)
-- 🔴 Vermelho - Vencido
-- 🟢 Verde - Pago
+/* Vence em até 3 dias */
+.due-soon {
+  background: #fef3c7; /* yellow-100 */
+  border: #f59e0b;     /* yellow-500 */
+}
 
-**Cards no Dashboard:**
-- Borda vermelha - Boletos vencidos (ação urgente)
-- Borda amarela - Boletos próximos (atenção)
+/* Vence em 4+ dias */
+.due-later {
+  background: #dbeafe; /* blue-100 */
+  border: #3b82f6;     /* blue-500 */
+}
 
----
-
-## 💡 Dicas de Uso
-
-1. **Cadastre fornecedores primeiro**: Facilita o cadastro de boletos posteriormente
-
-2. **Use o campo "Observações"**: Anote informações importantes sobre cada boleto
-
-3. **Anexe sempre o arquivo**: Facilita a consulta futura sem precisar buscar o boleto físico
-
-4. **Configure parcelas**: Se um boleto tem várias parcelas, informe no campo "Número de Parcelas"
-
-5. **Marque como pago imediatamente**: Após efetuar o pagamento, marque no sistema para manter o controle atualizado
-
-6. **Use os filtros**: Na página de boletos, filtre por status ou fornecedor para encontrar rapidamente o que precisa
-
-7. **Monitore o Dashboard**: Acesse diariamente para não perder nenhum vencimento
+/* Pago */
+.paid {
+  background: #dcfce7; /* green-100 */
+  border: #22c55e;     /* green-500 */
+}
+```
 
 ---
 
-## 🚀 Status Atual
+## 📊 Fluxo de Dados
 
-✅ **Totalmente funcional e deployado em:**
-- URL: https://controle-compras-res-d7yzxl.abacusai.app
-
-✅ **Integrado com:**
-- Supabase (PostgreSQL)
-- AWS S3 (armazenamento de arquivos)
-- Sistema de categorização automática existente
-
-✅ **Recursos adicionais:**
-- Navbar atualizada com links para Boletos e Fornecedores
-- Dashboard com alertas visuais
-- Interface responsiva e intuitiva
-
----
-
-## 📝 Próximas Melhorias Sugeridas
-
-1. **Notificações por e-mail**: Enviar alertas automáticos de vencimento
-2. **Relatórios de boletos**: Gerar relatórios mensais/anuais
-3. **Integração bancária**: Importar boletos direto do banco
-4. **Agendamento de pagamentos**: Agendar pagamentos futuros
-5. **Dashboard de fluxo de caixa**: Projeção de saídas baseada nos boletos
+```
+1. USUÁRIO FAZ UPLOAD
+   ↓
+2. ARQUIVO SALVO NO S3
+   ↓
+3. REGISTRO CRIADO NO DB (status: pending)
+   ↓
+4. OCR PROCESSADO COM GPT-4o
+   ↓
+5. DADOS EXTRAÍDOS E SALVOS NO DB
+   ↓
+6. BOLETO APARECE NA LISTA
+   ↓
+7. USUÁRIO MARCA COMO PAGO
+   ↓
+8. STATUS ATUALIZADO (pending → paid)
+```
 
 ---
 
-## 🆘 Suporte
+## 🔐 Segurança
 
-Para dúvidas ou problemas:
-1. Verifique se todos os fornecedores estão cadastrados antes de criar boletos
-2. Certifique-se de que as datas estão no formato correto
-3. Arquivos devem ser PDF, JPG ou PNG (máximo 10MB)
-4. Em caso de erro, verifique o console do navegador (F12)
+- ✅ Arquivos armazenados em **AWS S3** privado
+- ✅ URLs assinadas com **expiração de 1 hora**
+- ✅ Validação de tipo e tamanho de arquivo
+- ✅ Dados sensíveis em **variáveis de ambiente**
+- ✅ Conexão com banco via **Supabase Session Pooler**
 
 ---
 
-**Desenvolvido por:** Abacus.AI Deep Agent
-**Data:** Dezembro 2025
-**Versão:** 1.0
+## 🐛 Troubleshooting
+
+### Erro: "OCR falhou"
+**Possíveis causas:**
+- Arquivo com baixa qualidade
+- Formato não suportado
+- Boleto ilegível
+
+**Solução:**
+1. Verifique a qualidade da imagem/PDF
+2. Tente fazer novo upload
+3. Verifique se o arquivo não está corrompido
+
+### Erro: "Erro ao fazer upload"
+**Possíveis causas:**
+- Arquivo maior que 10MB
+- Formato não suportado
+- Problemas de conexão
+
+**Solução:**
+1. Reduza o tamanho do arquivo
+2. Converta para PDF, JPG ou PNG
+3. Verifique sua conexão
+
+---
+
+## 📈 Roadmap
+
+### Versão Atual (v1.0)
+- ✅ Upload de boletos
+- ✅ OCR automático
+- ✅ Listagem com filtros
+- ✅ Marcar como pago
+- ✅ Estatísticas básicas
+
+### Próximas Versões
+- ⏳ Notificações de vencimento
+- ⏳ Relatórios em PDF
+- ⏳ Integração com bancos
+- ⏳ Pagamento online
+- ⏳ Histórico de pagamentos
+
+---
+
+## 📞 Suporte
+
+**Aplicação:** https://controle-compras-res-d7yzxl.abacusai.app  
+**GitHub:** https://github.com/anabmoser/Controle-Financeiro-Abacus
+
+---
+
+## 📝 Changelog
+
+### v1.0.1 - 05/12/2025
+**🐛 Correções:**
+- Corrigido erro 500 na rota `/api/bills/upcoming`
+- Corrigido erro 500 na rota `/api/bills/stats`
+- Adicionado `export const dynamic = 'force-dynamic'` para forçar renderização dinâmica
+- Aplicado deploy com correções
+
+**✅ Testes:**
+- Dashboard carregando corretamente
+- Página de boletos funcionando perfeitamente
+- Estatísticas sendo exibidas sem erros
+
+### v1.0.0 - 04/12/2025
+**🎉 Lançamento Inicial:**
+- Upload de boletos via drag & drop
+- OCR automático com GPT-4o
+- Dashboard com estatísticas
+- Filtros por status
+- Marcação de pagamento
+- Integração com AWS S3
+- Integração com Supabase
+
+---
+
+**Desenvolvido com ❤️ para gestão financeira eficiente de restaurantes**
