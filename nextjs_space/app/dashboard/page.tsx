@@ -11,6 +11,10 @@ import {
   TrendingUp,
   Package,
   Calendar as CalendarIcon,
+  AlertCircle,
+  Clock,
+  FileText,
+  Building2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import dynamic from 'next/dynamic'
@@ -44,10 +48,27 @@ interface DashboardStats {
   evolucaoMensal: Array<{ month: string; value: number }>
 }
 
+interface Bill {
+  id: string
+  description: string
+  installmentAmount: number
+  dueDate: string
+  supplier: {
+    name: string
+  }
+}
+
+interface BillsData {
+  upcoming: Bill[]
+  overdue: Bill[]
+  total: number
+}
+
 type PeriodType = 'current_month' | 'last_month' | '7' | 'custom'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [bills, setBills] = useState<BillsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('current_month')
   const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({})
@@ -55,7 +76,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadStats()
+    loadBills()
   }, [period, customDateRange])
+
+  async function loadBills() {
+    try {
+      const response = await fetch('/api/bills/upcoming?days=7')
+      const data = await response.json()
+      setBills(data)
+    } catch (error) {
+      console.error('Erro ao carregar boletos:', error)
+    }
+  }
 
   function calculatePeriodDays(): string {
     const now = new Date()
@@ -214,6 +246,124 @@ export default function DashboardPage() {
             color="purple"
           />
         </div>
+
+        {/* Alertas de Boletos */}
+        {bills && (bills.overdue.length > 0 || bills.upcoming.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Boletos Vencidos */}
+            {bills.overdue.length > 0 && (
+              <div className="card border-l-4 border-red-500">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Boletos Vencidos
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {bills.overdue.length} boleto{bills.overdue.length > 1 ? 's' : ''} vencido{bills.overdue.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {bills.overdue.map((bill) => (
+                    <div
+                      key={bill.id}
+                      className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">
+                            {bill.description}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <Building2 className="w-4 h-4" />
+                            {bill.supplier.name}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-red-600 dark:text-red-400">
+                            <CalendarIcon className="w-4 h-4" />
+                            Venceu em {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-gray-900 dark:text-white">
+                            {formatCurrency(Number(bill.installmentAmount))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => window.location.href = '/boletos'}
+                    className="w-full bg-red-600 hover:bg-red-700"
+                  >
+                    Ver Todos os Boletos
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Boletos Próximos ao Vencimento */}
+            {bills.upcoming.length > 0 && (
+              <div className="card border-l-4 border-yellow-500">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Próximos a Vencer
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Próximos 7 dias
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {bills.upcoming.map((bill) => (
+                    <div
+                      key={bill.id}
+                      className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">
+                            {bill.description}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <Building2 className="w-4 h-4" />
+                            {bill.supplier.name}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-yellow-600 dark:text-yellow-400">
+                            <CalendarIcon className="w-4 h-4" />
+                            Vence em {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-gray-900 dark:text-white">
+                            {formatCurrency(Number(bill.installmentAmount))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => window.location.href = '/boletos'}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Ver Todos os Boletos
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
