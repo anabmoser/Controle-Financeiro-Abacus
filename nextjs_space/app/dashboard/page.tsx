@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Clock,
   FileText,
-  Building2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import dynamic from 'next/dynamic'
@@ -50,12 +49,10 @@ interface DashboardStats {
 
 interface Bill {
   id: string
-  description: string
-  installmentAmount: number
+  supplierName: string
+  description: string | null
+  totalAmount: number
   dueDate: string
-  supplier: {
-    name: string
-  }
 }
 
 interface BillsData {
@@ -275,12 +272,13 @@ export default function DashboardPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {bill.description}
+                            {bill.supplierName}
                           </h3>
-                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            <Building2 className="w-4 h-4" />
-                            {bill.supplier.name}
-                          </div>
+                          {bill.description && (
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {bill.description}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 mt-1 text-sm text-red-600 dark:text-red-400">
                             <CalendarIcon className="w-4 h-4" />
                             Venceu em {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
@@ -288,7 +286,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-gray-900 dark:text-white">
-                            {formatCurrency(Number(bill.installmentAmount))}
+                            {formatCurrency(Number(bill.totalAmount))}
                           </p>
                         </div>
                       </div>
@@ -331,12 +329,13 @@ export default function DashboardPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {bill.description}
+                            {bill.supplierName}
                           </h3>
-                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            <Building2 className="w-4 h-4" />
-                            {bill.supplier.name}
-                          </div>
+                          {bill.description && (
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {bill.description}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 mt-1 text-sm text-yellow-600 dark:text-yellow-400">
                             <CalendarIcon className="w-4 h-4" />
                             Vence em {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
@@ -344,7 +343,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-gray-900 dark:text-white">
-                            {formatCurrency(Number(bill.installmentAmount))}
+                            {formatCurrency(Number(bill.totalAmount))}
                           </p>
                         </div>
                       </div>

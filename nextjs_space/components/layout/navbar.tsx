@@ -12,7 +12,6 @@ import {
   Package,
   Calendar,
   FileText,
-  Building2,
 } from 'lucide-react'
 
 const navItems = [
@@ -21,7 +20,6 @@ const navItems = [
   { href: '/compras', label: 'Compras', icon: ShoppingCart },
   { href: '/produtos', label: 'Produtos', icon: Package },
   { href: '/boletos', label: 'Boletos', icon: FileText },
-  { href: '/fornecedores', label: 'Fornecedores', icon: Building2 },
   { href: '/periodos', label: 'Períodos', icon: Calendar },
   { href: '/categorias', label: 'Categorias', icon: FolderOpen },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3 },

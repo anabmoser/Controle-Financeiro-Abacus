@@ -26,11 +26,11 @@ export async function GET() {
     // Valor total pendente
     const pendingBills = await prisma.bill.findMany({
       where: { status: 'pending' },
-      select: { installmentAmount: true }
+      select: { totalAmount: true }
     });
 
     const totalPending = pendingBills.reduce(
-      (sum: number, bill: { installmentAmount: Decimal }) => sum + Number(bill.installmentAmount),
+      (sum: number, bill: { totalAmount: Decimal }) => sum + Number(bill.totalAmount),
       0
     );
 
@@ -43,11 +43,11 @@ export async function GET() {
           lte: endMonth
         }
       },
-      select: { installmentAmount: true }
+      select: { totalAmount: true }
     });
 
     const totalPaidThisMonth = paidBills.reduce(
-      (sum: number, bill: { installmentAmount: Decimal }) => sum + Number(bill.installmentAmount),
+      (sum: number, bill: { totalAmount: Decimal }) => sum + Number(bill.totalAmount),
       0
     );
 
@@ -60,11 +60,11 @@ export async function GET() {
           lte: endMonth
         }
       },
-      select: { installmentAmount: true }
+      select: { totalAmount: true }
     });
 
     const totalDueThisMonth = dueBills.reduce(
-      (sum: number, bill: { installmentAmount: Decimal }) => sum + Number(bill.installmentAmount),
+      (sum: number, bill: { totalAmount: Decimal }) => sum + Number(bill.totalAmount),
       0
     );
 

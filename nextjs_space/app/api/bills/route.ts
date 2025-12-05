@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { uploadFile } from '@/lib/s3';
 
 // GET - Listar boletos com filtros
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const supplierId = searchParams.get('supplierId');
+    const supplierName = searchParams.get('supplierName');
     const month = searchParams.get('month');
     const year = searchParams.get('year');
 
@@ -17,8 +16,11 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    if (supplierId) {
-      where.supplierId = supplierId;
+    if (supplierName) {
+      where.supplierName = {
+        contains: supplierName,
+        mode: 'insensitive'
+      };
     }
 
     if (month && year) {
@@ -32,9 +34,6 @@ export async function GET(request: NextRequest) {
 
     const bills = await prisma.bill.findMany({
       where,
-      include: {
-        supplier: true
-      },
       orderBy: { dueDate: 'asc' }
     });
 
@@ -43,73 +42,6 @@ export async function GET(request: NextRequest) {
     console.error('Erro ao buscar boletos:', error);
     return NextResponse.json(
       { error: 'Erro ao buscar boletos' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Criar novo boleto
-export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    
-    const supplierId = formData.get('supplierId') as string;
-    const description = formData.get('description') as string;
-    const totalAmount = parseFloat(formData.get('totalAmount') as string);
-    const installments = parseInt(formData.get('installments') as string) || 1;
-    const dueDate = new Date(formData.get('dueDate') as string);
-    const issueDate = formData.get('issueDate') ? new Date(formData.get('issueDate') as string) : null;
-    const billNumber = formData.get('billNumber') as string || null;
-    const notes = formData.get('notes') as string || null;
-    const file = formData.get('file') as File | null;
-
-    // Validações
-    if (!supplierId || !description || !totalAmount || !dueDate) {
-      return NextResponse.json(
-        { error: 'Campos obrigatórios faltando' },
-        { status: 400 }
-      );
-    }
-
-    // Upload do arquivo se existir
-    let fileUrl = null;
-    let fileName = null;
-
-    if (file) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      fileUrl = await uploadFile(buffer, file.name);
-      fileName = file.name;
-    }
-
-    // Calcular valor da parcela
-    const installmentAmount = totalAmount / installments;
-
-    const bill = await prisma.bill.create({
-      data: {
-        supplierId,
-        description,
-        totalAmount,
-        installments,
-        currentInstallment: 1,
-        installmentAmount,
-        dueDate,
-        issueDate,
-        billNumber,
-        notes,
-        fileUrl,
-        fileName,
-        status: 'pending'
-      },
-      include: {
-        supplier: true
-      }
-    });
-
-    return NextResponse.json({ bill }, { status: 201 });
-  } catch (error) {
-    console.error('Erro ao criar boleto:', error);
-    return NextResponse.json(
-      { error: 'Erro ao criar boleto' },
       { status: 500 }
     );
   }
@@ -137,10 +69,7 @@ export async function PUT(request: NextRequest) {
 
     const bill = await prisma.bill.update({
       where: { id: data.id },
-      data: updateData,
-      include: {
-        supplier: true
-      }
+      data: updateData
     });
 
     return NextResponse.json({ bill });
@@ -156,8 +85,8 @@ export async function PUT(request: NextRequest) {
 // DELETE - Deletar boleto
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const data = await request.json();
+    const id = data.id;
     
     if (!id) {
       return NextResponse.json(

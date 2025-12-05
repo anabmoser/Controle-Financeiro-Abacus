@@ -1,144 +1,115 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle, AlertCircle, Clock, Download, Trash2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { 
-  FileText, 
-  Plus, 
-  Calendar, 
-  DollarSign, 
-  AlertCircle, 
-  CheckCircle2,
-  Clock,
-  Download,
-  Edit,
-  Trash2,
-  Building2,
-  Upload
-} from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatCurrency } from '@/lib/formatters';
-
-interface Supplier {
-  id: string;
-  name: string;
-}
+import { format, differenceInDays, isPast, isFuture } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Bill {
   id: string;
-  supplierId: string;
-  billNumber?: string | null;
-  description: string;
+  supplierName: string;
+  supplierCnpj: string | null;
+  billNumber: string | null;
+  barCode: string | null;
+  description: string | null;
   totalAmount: number;
-  installments: number;
-  currentInstallment: number;
-  installmentAmount: number;
   dueDate: string;
-  issueDate?: string | null;
-  paymentDate?: string | null;
+  issueDate: string | null;
+  paymentDate: string | null;
   status: string;
-  fileUrl?: string | null;
-  fileName?: string | null;
-  notes?: string | null;
-  supplier: Supplier;
+  fileUrl: string;
+  fileName: string;
+  ocrStatus: string;
+  ocrError: string | null;
+  createdAt: string;
 }
 
-export default function BoletosPage() {
+export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterSupplier, setFilterSupplier] = useState<string>('all');
-
-  const [formData, setFormData] = useState({
-    supplierId: '',
-    billNumber: '',
-    description: '',
-    totalAmount: '',
-    installments: '1',
-    dueDate: '',
-    issueDate: '',
-    notes: ''
-  });
+  const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'overdue' | 'upcoming' | 'paid'>('all');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
-  }, [filterStatus, filterSupplier]);
+    loadBills();
+  }, []);
 
-  const loadData = async () => {
+  async function loadBills() {
     try {
       setLoading(true);
+      const response = await fetch('/api/bills');
       
-      // Carregar fornecedores
-      const suppliersRes = await fetch('/api/suppliers');
-      const suppliersData = await suppliersRes.json();
-      setSuppliers(suppliersData.suppliers || []);
-
-      // Carregar boletos com filtros
-      let url = '/api/bills?';
-      if (filterStatus !== 'all') url += `status=${filterStatus}&`;
-      if (filterSupplier !== 'all') url += `supplierId=${filterSupplier}&`;
-
-      const billsRes = await fetch(url);
-      const billsData = await billsRes.json();
-      setBills(billsData.bills || []);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados');
+      if (!response.ok) {
+        throw new Error('Erro ao carregar boletos');
+      }
+      
+      const data = await response.json();
+      setBills(data.bills || []);
+    } catch (error: any) {
+      setError(error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    if (!formData.supplierId || !formData.description || !formData.totalAmount || !formData.dueDate) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
+    setError(null);
+    setSuccess(null);
+    setUploading(true);
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('supplierId', formData.supplierId);
-      formDataToSend.append('billNumber', formData.billNumber);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('totalAmount', formData.totalAmount);
-      formDataToSend.append('installments', formData.installments);
-      formDataToSend.append('dueDate', formData.dueDate);
-      if (formData.issueDate) formDataToSend.append('issueDate', formData.issueDate);
-      if (formData.notes) formDataToSend.append('notes', formData.notes);
-      if (selectedFile) formDataToSend.append('file', selectedFile);
+      // Upload do arquivo
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const response = await fetch('/api/bills', {
+      const uploadResponse = await fetch('/api/bills/upload', {
         method: 'POST',
-        body: formDataToSend
+        body: formData
       });
 
-      if (!response.ok) throw new Error('Erro ao cadastrar boleto');
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Erro ao fazer upload');
+      }
 
-      toast.success('Boleto cadastrado com sucesso!');
-      setDialogOpen(false);
-      resetForm();
-      loadData();
-    } catch (error) {
-      console.error('Erro ao cadastrar boleto:', error);
-      toast.error('Erro ao cadastrar boleto');
+      const { billId } = await uploadResponse.json();
+      setUploading(false);
+      setProcessing(true);
+
+      // Processar OCR
+      const ocrResponse = await fetch('/api/bills/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billId })
+      });
+
+      if (!ocrResponse.ok) {
+        throw new Error('Erro ao processar OCR');
+      }
+
+      setSuccess('Boleto cadastrado com sucesso!');
+      await loadBills();
+      event.target.value = ''; // Limpar input
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setUploading(false);
+      setProcessing(false);
     }
-  };
+  }
 
-  const handleMarkAsPaid = async (billId: string) => {
+  async function handleMarkAsPaid(billId: string) {
     try {
       const response = await fetch('/api/bills', {
         method: 'PUT',
@@ -150,397 +121,328 @@ export default function BoletosPage() {
         })
       });
 
-      if (!response.ok) throw new Error('Erro ao marcar como pago');
+      if (!response.ok) {
+        throw new Error('Erro ao marcar como pago');
+      }
 
-      toast.success('Boleto marcado como pago!');
-      loadData();
-    } catch (error) {
-      console.error('Erro ao marcar como pago:', error);
-      toast.error('Erro ao marcar como pago');
+      setSuccess('Boleto marcado como pago!');
+      await loadBills();
+    } catch (error: any) {
+      setError(error.message);
     }
-  };
+  }
 
-  const handleDelete = async (billId: string) => {
+  async function handleDelete(billId: string) {
     if (!confirm('Tem certeza que deseja excluir este boleto?')) return;
 
     try {
-      const response = await fetch(`/api/bills?id=${billId}`, {
-        method: 'DELETE'
+      const response = await fetch('/api/bills', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: billId })
       });
 
-      if (!response.ok) throw new Error('Erro ao deletar boleto');
+      if (!response.ok) {
+        throw new Error('Erro ao excluir boleto');
+      }
 
-      toast.success('Boleto excluído com sucesso!');
-      loadData();
-    } catch (error) {
-      console.error('Erro ao deletar boleto:', error);
-      toast.error('Erro ao deletar boleto');
+      setSuccess('Boleto excluído com sucesso!');
+      await loadBills();
+    } catch (error: any) {
+      setError(error.message);
     }
-  };
+  }
 
-  const resetForm = () => {
-    setFormData({
-      supplierId: '',
-      billNumber: '',
-      description: '',
-      totalAmount: '',
-      installments: '1',
-      dueDate: '',
-      issueDate: '',
-      notes: ''
-    });
-    setSelectedFile(null);
-  };
+  function getBillStatus(bill: Bill) {
+    if (bill.status === 'paid') {
+      return { color: 'bg-green-500', label: 'Pago', icon: CheckCircle };
+    }
 
-  const getBillStatusColor = (bill: Bill) => {
-    if (bill.status === 'paid') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-    
-    const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
-    
-    if (daysUntilDue < 0) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-    if (daysUntilDue <= 3) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-    return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-  };
+    const dueDate = new Date(bill.dueDate);
+    const today = new Date();
+    const daysUntilDue = differenceInDays(dueDate, today);
 
-  const getBillStatusIcon = (bill: Bill) => {
-    if (bill.status === 'paid') return <CheckCircle2 className="w-4 h-4" />;
-    
-    const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
-    
-    if (daysUntilDue < 0) return <AlertCircle className="w-4 h-4" />;
-    if (daysUntilDue <= 3) return <Clock className="w-4 h-4" />;
-    return <Calendar className="w-4 h-4" />;
-  };
+    if (isPast(dueDate) && !bill.paymentDate) {
+      return { color: 'bg-red-500', label: `Vencido há ${Math.abs(daysUntilDue)} dias`, icon: AlertCircle };
+    }
 
-  const getBillStatusText = (bill: Bill) => {
-    if (bill.status === 'paid') return 'Pago';
-    
-    const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
-    
-    if (daysUntilDue < 0) return `Vencido há ${Math.abs(daysUntilDue)} dias`;
-    if (daysUntilDue === 0) return 'Vence hoje';
-    if (daysUntilDue <= 3) return `Vence em ${daysUntilDue} dias`;
-    return 'Pendente';
+    if (daysUntilDue <= 3) {
+      return { color: 'bg-yellow-500', label: `Vence em ${daysUntilDue} dias`, icon: Clock };
+    }
+
+    return { color: 'bg-blue-500', label: `Vence em ${daysUntilDue} dias`, icon: Clock };
+  }
+
+  const filteredBills = bills.filter(bill => {
+    const dueDate = new Date(bill.dueDate);
+    const today = new Date();
+
+    switch (filter) {
+      case 'overdue':
+        return isPast(dueDate) && bill.status === 'pending';
+      case 'upcoming':
+        return isFuture(dueDate) && bill.status === 'pending';
+      case 'paid':
+        return bill.status === 'paid';
+      default:
+        return true;
+    }
+  });
+
+  const stats = {
+    total: bills.length,
+    overdue: bills.filter(b => isPast(new Date(b.dueDate)) && b.status === 'pending').length,
+    upcoming: bills.filter(b => isFuture(new Date(b.dueDate)) && b.status === 'pending').length,
+    paid: bills.filter(b => b.status === 'paid').length,
+    totalAmount: bills
+      .filter(b => b.status === 'pending')
+      .reduce((sum, b) => sum + Number(b.totalAmount), 0)
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Boletos a Pagar
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Gerencie os boletos e contas do restaurante
+          <h1 className="text-3xl font-bold">Boletos a Pagar</h1>
+          <p className="text-muted-foreground mt-1">
+            Faça upload de boletos e gerencie seus pagamentos
           </p>
         </div>
+      </div>
 
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Boleto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Boleto</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label htmlFor="supplierId">Fornecedor *</Label>
-                  <Select 
-                    value={formData.supplierId} 
-                    onValueChange={(value) => setFormData({ ...formData, supplierId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o fornecedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* Alertas */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-                <div>
-                  <Label htmlFor="billNumber">Número do Boleto</Label>
-                  <Input
-                    id="billNumber"
-                    value={formData.billNumber}
-                    onChange={(e) => setFormData({ ...formData, billNumber: e.target.value })}
-                    placeholder="Ex: 12345678"
-                  />
-                </div>
+      {success && (
+        <Alert className="bg-green-50 border-green-200 text-green-800">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
 
-                <div>
-                  <Label htmlFor="totalAmount">Valor Total *</Label>
-                  <Input
-                    id="totalAmount"
-                    type="number"
-                    step="0.01"
-                    value={formData.totalAmount}
-                    onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                    required
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="description">Descrição *</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    placeholder="Ex: Pagamento de fornecimento"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="installments">Número de Parcelas</Label>
-                  <Input
-                    id="installments"
-                    type="number"
-                    min="1"
-                    value={formData.installments}
-                    onChange={(e) => setFormData({ ...formData, installments: e.target.value })}
-                    placeholder="1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="dueDate">Data de Vencimento *</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="issueDate">Data de Emissão</Label>
-                  <Input
-                    id="issueDate"
-                    type="date"
-                    value={formData.issueDate}
-                    onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="file">Anexar Boleto (PDF ou Imagem)</Label>
-                  <div className="mt-2">
-                    <Input
-                      id="file"
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    />
-                    {selectedFile && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                        Arquivo selecionado: {selectedFile.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="notes">Observações</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Informações adicionais..."
-                    rows={3}
-                  />
-                </div>
+      {/* Área de Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Upload de Boleto
+          </CardTitle>
+          <CardDescription>
+            Envie uma imagem ou PDF do boleto. O sistema extrairá os dados automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
+            <input
+              type="file"
+              id="file-upload"
+              className="hidden"
+              accept="application/pdf,image/jpeg,image/jpg,image/png"
+              onChange={handleFileUpload}
+              disabled={uploading || processing}
+            />
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer flex flex-col items-center gap-3"
+            >
+              <FileText className="h-12 w-12 text-gray-400" />
+              <div>
+                <p className="text-lg font-medium">
+                  {uploading ? 'Enviando arquivo...' : processing ? 'Processando OCR...' : 'Clique para selecionar um arquivo'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Formatos aceitos: PDF, JPG, PNG (máx. 10MB)
+                </p>
               </div>
+              {(uploading || processing) && (
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              )}
+            </label>
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  Cadastrar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Total de Boletos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
+            <p className="text-xs text-muted-foreground">Vencidos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">{stats.upcoming}</div>
+            <p className="text-xs text-muted-foreground">A Vencer</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{stats.paid}</div>
+            <p className="text-xs text-muted-foreground">Pagos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount)}</div>
+            <p className="text-xs text-muted-foreground">A Pagar</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="pending">Pendentes</SelectItem>
-            <SelectItem value="paid">Pagos</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterSupplier} onValueChange={setFilterSupplier}>
-          <SelectTrigger className="w-full sm:w-64">
-            <SelectValue placeholder="Fornecedor" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Fornecedores</SelectItem>
-            {suppliers.map((supplier) => (
-              <SelectItem key={supplier.id} value={supplier.id}>
-                {supplier.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex gap-2">
+        <Button
+          variant={filter === 'all' ? 'default' : 'outline'}
+          onClick={() => setFilter('all')}
+        >
+          Todos
+        </Button>
+        <Button
+          variant={filter === 'overdue' ? 'default' : 'outline'}
+          onClick={() => setFilter('overdue')}
+        >
+          Vencidos
+        </Button>
+        <Button
+          variant={filter === 'upcoming' ? 'default' : 'outline'}
+          onClick={() => setFilter('upcoming')}
+        >
+          A Vencer
+        </Button>
+        <Button
+          variant={filter === 'paid' ? 'default' : 'outline'}
+          onClick={() => setFilter('paid')}
+        >
+          Pagos
+        </Button>
       </div>
 
       {/* Lista de Boletos */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-400 mt-4">Carregando boletos...</p>
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
         </div>
-      ) : bills.length === 0 ? (
-        <Card className="p-12 text-center">
-          <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+      ) : filteredBills.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
             Nenhum boleto encontrado
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Comece cadastrando seu primeiro boleto
-          </p>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Cadastrar Boleto
-          </Button>
+          </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {bills.map((bill) => (
-            <Card key={bill.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
-                        {bill.description}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Building2 className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {bill.supplier.name}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge className={getBillStatusColor(bill)}>
-                      <div className="flex items-center gap-1">
-                        {getBillStatusIcon(bill)}
-                        {getBillStatusText(bill)}
-                      </div>
-                    </Badge>
-                  </div>
+        <div className="space-y-3">
+          {filteredBills.map(bill => {
+            const status = getBillStatus(bill);
+            const StatusIcon = status.icon;
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Valor</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(Number(bill.installmentAmount))}
-                      </p>
-                      {bill.installments > 1 && (
-                        <p className="text-xs text-gray-500">
-                          {bill.currentInstallment}/{bill.installments} parcelas
-                        </p>
+            return (
+              <Card key={bill.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${status.color} bg-opacity-10`}>
+                          <StatusIcon className={`h-5 w-5 ${status.color.replace('bg-', 'text-')}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-lg">{bill.supplierName}</h3>
+                            <Badge className={status.color}>{status.label}</Badge>
+                          </div>
+                          {bill.supplierCnpj && (
+                            <p className="text-sm text-muted-foreground">CNPJ: {bill.supplierCnpj}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Informações */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Valor</p>
+                          <p className="font-semibold text-lg">{formatCurrency(Number(bill.totalAmount))}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Vencimento</p>
+                          <p className="font-medium">
+                            {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
+                          </p>
+                        </div>
+                        {bill.billNumber && (
+                          <div>
+                            <p className="text-muted-foreground">Número</p>
+                            <p className="font-medium">{bill.billNumber}</p>
+                          </div>
+                        )}
+                        {bill.paymentDate && (
+                          <div>
+                            <p className="text-muted-foreground">Pago em</p>
+                            <p className="font-medium">
+                              {format(new Date(bill.paymentDate), 'dd/MM/yyyy', { locale: ptBR })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {bill.description && (
+                        <p className="text-sm text-muted-foreground">{bill.description}</p>
+                      )}
+
+                      {bill.ocrStatus === 'error' && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            Erro no OCR: {bill.ocrError || 'Erro desconhecido'}
+                          </AlertDescription>
+                        </Alert>
                       )}
                     </div>
 
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Vencimento</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {format(new Date(bill.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
-                      </p>
+                    {/* Ações */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(bill.fileUrl, '_blank')}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {bill.status === 'pending' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleMarkAsPaid(bill.id)}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(bill.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-
-                    {bill.billNumber && (
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Número</p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {bill.billNumber}
-                        </p>
-                      </div>
-                    )}
-
-                    {bill.paymentDate && (
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Data de Pagamento</p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {format(new Date(bill.paymentDate), 'dd/MM/yyyy', { locale: ptBR })}
-                        </p>
-                      </div>
-                    )}
                   </div>
-
-                  {bill.notes && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 italic">
-                      {bill.notes}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex lg:flex-col gap-2">
-                  {bill.fileUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(bill.fileUrl!, '_blank')}
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Ver Arquivo
-                    </Button>
-                  )}
-                  
-                  {bill.status === 'pending' && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleMarkAsPaid(bill.id)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      Marcar como Pago
-                    </Button>
-                  )}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(bill.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

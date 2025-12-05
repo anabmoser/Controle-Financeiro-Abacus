@@ -96,44 +96,31 @@ model Receipt {
   @@map("receipts")
 }
 
-model Supplier {
-  id            String   @id @default(uuid())
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  name          String   @db.VarChar(255)
-  cnpj          String?  @db.VarChar(18)
-  email         String?  @db.VarChar(255)
-  phone         String?  @db.VarChar(20)
-  address       String?  @db.Text
-  contactPerson String?  @map("contact_person") @db.VarChar(255)
-  notes         String?  @db.Text
-  active        Boolean  @default(true)
-  bills         Bill[]
-
-  @@index([name])
-  @@map("suppliers")
-}
-
 model Bill {
-  id                String    @id @default(uuid())
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  supplierId        String    @map("supplier_id")
-  billNumber        String?   @map("bill_number") @db.VarChar(100)
-  description       String    @db.VarChar(500)
-  totalAmount       Decimal   @map("total_amount") @db.Decimal(10, 2)
-  installments      Int       @default(1)
-  currentInstallment Int      @default(1) @map("current_installment")
-  installmentAmount Decimal   @map("installment_amount") @db.Decimal(10, 2)
-  dueDate           DateTime  @map("due_date") @db.Timestamptz(6)
-  issueDate         DateTime? @map("issue_date") @db.Timestamptz(6)
-  paymentDate       DateTime? @map("payment_date") @db.Timestamptz(6)
-  status            String    @default("pending") @db.VarChar(20)
-  fileUrl           String?   @map("file_url")
-  fileName          String?   @map("file_name")
-  notes             String?   @db.Text
-  supplier          Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  supplierName  String    @map("supplier_name") @db.VarChar(255)
+  supplierCnpj  String?   @map("supplier_cnpj") @db.VarChar(18)
+  billNumber    String?   @map("bill_number") @db.VarChar(100)
+  barCode       String?   @map("bar_code") @db.VarChar(100)
+  description   String?   @db.Text
+  totalAmount   Decimal   @map("total_amount") @db.Decimal(10, 2)
+  dueDate       DateTime  @map("due_date") @db.Timestamptz(6)
+  issueDate     DateTime? @map("issue_date") @db.Timestamptz(6)
+  paymentDate   DateTime? @map("payment_date") @db.Timestamptz(6)
+  status        String    @default("pending") @db.VarChar(20)
+  fileUrl       String    @map("file_url")
+  fileName      String    @map("file_name")
+  fileSize      BigInt?   @map("file_size")
+  fileType      String?   @map("file_type") @db.VarChar(50)
+  ocrStatus     String    @default("pending") @map("ocr_status") @db.VarChar(20)
+  ocrResult     Json?     @map("ocr_result")
+  ocrError      String?   @map("ocr_error") @db.Text
+  notes         String?   @db.Text
 
-  @@index([supplierId])
+  @@index([supplierName])
   @@index([dueDate])
   @@index([status])
+  @@index([ocrStatus])
   @@map("bills")
 }

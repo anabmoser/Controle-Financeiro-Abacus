@@ -19,9 +19,6 @@ export async function GET(request: NextRequest) {
           lte: futureDate
         }
       },
-      include: {
-        supplier: true
-      },
       orderBy: { dueDate: 'asc' }
     });
 
@@ -32,9 +29,6 @@ export async function GET(request: NextRequest) {
         dueDate: {
           lt: today
         }
-      },
-      include: {
-        supplier: true
       },
       orderBy: { dueDate: 'asc' }
     });
