@@ -1,378 +1,256 @@
-# 📋 Controle de Boletos a Pagar - Guia Completo
+# 📊 Guia de Exportação de Dados - Página Períodos
 
-## 🎯 Visão Geral
+## 🎯 Localização dos Botões de Exportação
 
-O **Controle de Boletos a Pagar** é um módulo completamente automatizado que permite gerenciar boletos através de upload e extração automática de dados via OCR com Inteligência Artificial.
+Os botões de exportação **SÓ APARECEM DEPOIS QUE VOCÊ CLICA EM "BUSCAR"** e os dados são carregados.
+
+### Passo a Passo para Exportar:
+
+#### 1️⃣ **Acesse a Página de Períodos**
+```
+https://controle-compras-res-d7yzxl.abacusai.app/periodos
+```
+
+#### 2️⃣ **Preencha os Filtros (Opcional)**
+- **Data Inicial**: Escolha a data de início (ex: 01/11/2025)
+- **Data Final**: Escolha a data final (ex: 31/12/2025)
+- **Fornecedor**: Digite o nome do fornecedor (opcional)
+- **Produto**: Digite o nome do produto (opcional)
+
+💡 **DICA**: Você pode deixar todos os campos vazios e clicar em "Buscar" para ver TODAS as compras!
+
+#### 3️⃣ **Clique no Botão "Buscar"**
+Após clicar, você verá:
+- ✅ Estatísticas (Total de Compras, Valor Total, Fornecedores, Quantidade)
+- ✅ 4 Abas: **Compras | Por Produto | Por Fornecedor | Por Categoria**
+
+#### 4️⃣ **Localize o Botão "Exportar"**
+O botão "Exportar" está localizado:
+- **Posição**: Canto superior direito de cada aba
+- **Ao lado do título**: "Lista de Compras", "Produtos Mais Comprados", "Fornecedores", "Por Categoria"
+- **Ícone**: 📥 Download
+
+#### 5️⃣ **Clique no Botão "Exportar"**
+Ao clicar, aparecerá um **menu dropdown** com 2 opções:
+
+```
+📥 Exportar
+   ├── 📊 Exportar Excel (.xlsx)
+   └── 📄 Exportar CSV
+```
+
+#### 6️⃣ **Escolha o Formato Desejado**
+- **Excel (.xlsx)**: Melhor para análises no Excel, formatado com colunas ajustadas
+- **CSV**: Melhor para importar em outros sistemas, compatível com qualquer planilha
 
 ---
 
-## ✅ Problema Resolvido
+## 📋 Tipos de Exportação por Aba
 
-### Erro Identificado
-Quando o app foi acessado pela primeira vez, apresentava o seguinte erro:
-```
-Application error: a client-side exception has occurred
-TypeError: Cannot read properties of undefined (reading 'length')
-```
+### 📦 **Aba "Compras"**
+**Dados Exportados:**
+- Data da Compra
+- Fornecedor
+- CNPJ
+- Produto
+- Quantidade
+- Preço Unitário
+- Preço Total
+- Total da Compra
 
-**Erro 500 no Console:**
+**Nome do Arquivo:**
 ```
-Failed to load resource: the server responded with a status of 500 ()
-/api/bills/upcoming?days=7
-```
-
-### Causa do Erro
-O Next.js estava tentando fazer **renderização estática** de rotas API dinâmicas que usam `request.url`, causando erro durante o build:
-```
-Route /api/bills/upcoming couldn't be rendered statically because it used `request.url`
+compras_2025-11-01_2025-12-31.xlsx
+compras_2025-11-01_2025-12-31.csv
 ```
 
-### Solução Aplicada
-Adicionamos a configuração `export const dynamic = 'force-dynamic'` nos endpoints:
-- `/app/api/bills/upcoming/route.ts`
-- `/app/api/bills/stats/route.ts`
-
-Isso força a renderização dinâmica server-side, resolvendo o erro 500.
+**Exemplo de Uso:**
+- Enviar para contador
+- Análise de gastos mensais
+- Auditoria de compras
 
 ---
 
-## 🚀 Funcionalidades
+### 🛒 **Aba "Por Produto"**
+**Dados Exportados:**
+- Nome do Produto
+- Categoria
+- Quantidade Total Comprada
+- Valor Total Gasto
+- Preço Médio
+- Número de Compras
 
-### 1. Upload Automático
-- **Drag & Drop**: Arraste e solte boletos (PDF, JPG, PNG)
-- **Limite**: Máximo 10MB por arquivo
-- **Processamento**: OCR automático extrai todos os dados
+**Nome do Arquivo:**
+```
+produtos_2025-11-01_2025-12-31.xlsx
+produtos_2025-11-01_2025-12-31.csv
+```
 
-### 2. Extração Inteligente via IA
-O sistema usa **GPT-4o da Abacus.AI** para extrair:
-- ✅ Nome do Fornecedor
-- ✅ CNPJ do Fornecedor
-- ✅ Número do Boleto
-- ✅ Código de Barras
-- ✅ Descrição
-- ✅ Valor Total
-- ✅ Data de Vencimento
-- ✅ Data de Emissão
-
-### 3. Dashboard de Estatísticas
-- **Total de Boletos**: Quantidade total cadastrada
-- **Vencidos**: Boletos com vencimento passado (🔴 vermelho)
-- **A Vencer**: Boletos com vencimento próximo (🔵 azul)
-- **Pagos**: Boletos já quitados (🟢 verde)
-- **Total a Pagar**: Soma dos valores pendentes
-
-### 4. Organização por Status
-**Indicadores Visuais:**
-- 🔴 **Vermelho**: Vencido (mostra quantos dias de atraso)
-- 🟡 **Amarelo**: Vence em até 3 dias
-- 🔵 **Azul**: Vence em 4+ dias
-- 🟢 **Verde**: Pago
-
-### 5. Ações Rápidas
-- ✅ **Marcar como Pago**: Clique no botão ✅ quando efetuar o pagamento
-- 📥 **Download**: Baixe o arquivo original do boleto
-- 🗑️ **Excluir**: Remove o boleto do sistema
+**Exemplo de Uso:**
+- Identificar produtos mais comprados
+- Analisar variação de preços
+- Negociar com fornecedores
 
 ---
 
-## 📱 Como Usar
+### 🏪 **Aba "Por Fornecedor"**
+**Dados Exportados:**
+- Nome do Fornecedor
+- CNPJ
+- Total de Compras
+- Total de Itens
+- Valor Total
 
-### Passo 1: Acessar a Página de Boletos
+**Nome do Arquivo:**
 ```
-https://controle-compras-res-d7yzxl.abacusai.app/boletos
+fornecedores_2025-11-01_2025-12-31.xlsx
+fornecedores_2025-11-01_2025-12-31.csv
 ```
 
-### Passo 2: Fazer Upload
-1. Clique na área de upload ou arraste o arquivo
-2. Aguarde o processamento (≈10 segundos)
-3. O sistema automaticamente:
-   - Faz upload para AWS S3
-   - Processa OCR com IA
-   - Extrai todos os dados
-   - Salva no banco de dados
-
-### Passo 3: Visualizar Boletos
-- Os boletos aparecem organizados por status
-- Use os filtros: **Todos**, **Vencidos**, **A Vencer**, **Pagos**
-
-### Passo 4: Marcar como Pago
-1. Localize o boleto na lista
-2. Clique no botão ✅ **Marcar como Pago**
-3. O boleto muda para status "Pago" (🟢 verde)
+**Exemplo de Uso:**
+- Avaliar fornecedores mais utilizados
+- Negociar descontos por volume
+- Diversificar fornecedores
 
 ---
 
-## 🗂️ Arquitetura Técnica
+### 🎨 **Aba "Por Categoria"**
+**Dados Exportados:**
+- Nome da Categoria
+- Cor da Categoria
+- Quantidade de Itens
+- Valor Total
 
-### Database Schema (Prisma)
-```prisma
-model Bill {
-  id            String    @id @default(uuid())
-  createdAt     DateTime  @default(now())
-  supplierName  String    // Nome do fornecedor (OCR)
-  supplierCnpj  String?   // CNPJ do fornecedor (OCR)
-  billNumber    String?   // Número do boleto (OCR)
-  barCode       String?   // Código de barras (OCR)
-  description   String?   // Descrição (OCR)
-  totalAmount   Decimal   // Valor total (OCR)
-  dueDate       DateTime  // Data de vencimento (OCR)
-  issueDate     DateTime? // Data de emissão (OCR)
-  paymentDate   DateTime? // Data do pagamento (manual)
-  status        String    @default("pending") // pending/paid
-  
-  // Arquivo
-  fileUrl       String    // URL no S3
-  fileName      String
-  fileSize      BigInt?
-  fileType      String?
-  
-  // OCR
-  ocrStatus     String    @default("pending") // pending/processing/completed/error
-  ocrResult     Json?     // Resultado completo do OCR
-  ocrError      String?   // Mensagem de erro do OCR
-  notes         String?   // Observações manuais
-  
-  @@map("bills")
-}
+**Nome do Arquivo:**
+```
+categorias_2025-11-01_2025-12-31.xlsx
+categorias_2025-11-01_2025-12-31.csv
 ```
 
-### API Endpoints
+**Exemplo de Uso:**
+- Análise de gastos por tipo de produto
+- Orçamento por categoria
+- Controle de custos
 
-#### 1. Upload de Boleto
-```typescript
-POST /api/bills/upload
-Content-Type: multipart/form-data
+⚠️ **IMPORTANTE**: Como você ainda não criou categorias, verá apenas "Sem categoria". Crie as 11 categorias recomendadas na aba "Categorias" para aproveitar melhor esta funcionalidade!
 
-Response:
-{
-  "billId": "uuid",
-  "message": "Upload concluído. Processando OCR..."
-}
+---
+
+## 🎓 Exemplos Práticos
+
+### Exemplo 1: Exportar Todas as Compras de Novembro
+1. Data Inicial: `01/11/2025`
+2. Data Final: `30/11/2025`
+3. Clique em "Buscar"
+4. Aba "Compras" → Clique em "Exportar" → "Exportar Excel (.xlsx)"
+5. Arquivo gerado: `compras_2025-11-01_2025-11-30.xlsx`
+
+### Exemplo 2: Exportar Compras de um Fornecedor Específico
+1. Fornecedor: `Pão de Açúcar`
+2. Deixe as datas vazias (todas as datas)
+3. Clique em "Buscar"
+4. Aba "Compras" → Clique em "Exportar" → "Exportar CSV"
+5. Arquivo gerado: `compras_todos.csv`
+
+### Exemplo 3: Analisar Produtos Mais Comprados
+1. Deixe todos os filtros vazios
+2. Clique em "Buscar"
+3. Aba "Por Produto" → Clique em "Exportar" → "Exportar Excel (.xlsx)"
+4. Arquivo gerado: `produtos_todos.xlsx`
+5. Abra no Excel e ordene por "Valor Total" decrescente
+
+---
+
+## 🔧 Solução de Problemas
+
+### ❓ "Não consigo ver o botão Exportar"
+**Solução**: O botão só aparece DEPOIS de clicar em "Buscar". Certifique-se de:
+1. Clicar no botão "Buscar" (mesmo sem preencher filtros)
+2. Aguardar os dados carregarem (aparecem as estatísticas)
+3. O botão estará no canto superior direito de cada aba
+
+### ❓ "Aparece 'Nenhum dado para exportar'"
+**Solução**: Significa que não há dados no período/filtro selecionado:
+1. Tente remover os filtros e buscar novamente
+2. Verifique se há compras cadastradas no sistema
+3. Mude o período de busca
+
+### ❓ "O arquivo não abre no Excel"
+**Solução para CSV**:
+1. Abra o Excel
+2. Vá em "Dados" → "Obter Dados" → "Do Arquivo" → "Do Texto/CSV"
+3. Selecione o arquivo CSV baixado
+4. Escolha "Delimitador: vírgula" e "Codificação: UTF-8"
+
+**Solução para Excel (.xlsx)**:
+1. O arquivo deve abrir normalmente
+2. Se der erro, tente fazer o download novamente
+3. Certifique-se de ter o Microsoft Excel ou LibreOffice instalado
+
+---
+
+## 📊 Análises Recomendadas
+
+### 1. **Análise de Custos Mensais**
+```
+Exporte: Compras (com datas do mês)
+Abra no Excel → Crie uma Tabela Dinâmica
+Linhas: Fornecedor
+Valores: Soma de Total da Compra
 ```
 
-#### 2. Processamento OCR
-```typescript
-POST /api/bills/ocr
-Body: { "billId": "uuid" }
-
-Response:
-{
-  "success": true,
-  "data": {
-    "supplierName": "Empresa XYZ Ltda",
-    "cnpj": "12.345.678/0001-90",
-    "billNumber": "123456",
-    "barCode": "23793381286005001201778309012345678901234567",
-    "description": "Fornecimento de materiais",
-    "totalAmount": 1500.00,
-    "dueDate": "2025-12-15",
-    "issueDate": "2025-12-01"
-  }
-}
+### 2. **Top 10 Produtos Mais Caros**
+```
+Exporte: Por Produto (sem filtros)
+Abra no Excel → Ordene por "Valor Total" decrescente
+Selecione os 10 primeiros
 ```
 
-#### 3. Listar Boletos
-```typescript
-GET /api/bills?status=pending&month=12&year=2025
-
-Response:
-{
-  "bills": [
-    {
-      "id": "uuid",
-      "supplierName": "Empresa XYZ",
-      "totalAmount": 1500.00,
-      "dueDate": "2025-12-15",
-      "status": "pending",
-      "daysUntilDue": 10
-    }
-  ]
-}
+### 3. **Variação de Preço de um Produto**
+```
+Exporte: Compras com filtro de Produto
+Abra no Excel → Crie um gráfico de linha
+Eixo X: Data da Compra
+Eixo Y: Preço Unitário
 ```
 
-#### 4. Atualizar Boleto
-```typescript
-PUT /api/bills
-Body: { 
-  "id": "uuid", 
-  "status": "paid",
-  "paymentDate": "2025-12-05"
-}
-
-Response:
-{
-  "success": true,
-  "bill": { ... }
-}
+### 4. **Fornecedor com Melhor Custo-Benefício**
 ```
-
-#### 5. Estatísticas
-```typescript
-GET /api/bills/stats
-
-Response:
-{
-  "pendingCount": 5,
-  "overdueCount": 2,
-  "paidCount": 10,
-  "totalPending": 7500.00,
-  "totalOverdue": 3000.00,
-  "totalPaid": 15000.00
-}
-```
-
-#### 6. Boletos Próximos ao Vencimento
-```typescript
-GET /api/bills/upcoming?days=7
-
-Response:
-{
-  "upcoming": [ ... ],  // Vence nos próximos 7 dias
-  "overdue": [ ... ],   // Já vencidos
-  "total": 8
-}
+Exporte: Por Fornecedor
+Abra no Excel → Compare "Valor Total" vs "Total de Itens"
+Calcule: Valor Total / Total de Itens = Custo Médio por Item
 ```
 
 ---
 
-## 🎨 Interface
+## 🎯 Status Atual do Seu Sistema
 
-### Cores por Status
-```css
-/* Vencido */
-.overdue {
-  background: #fee2e2; /* red-100 */
-  border: #ef4444;     /* red-500 */
-}
+### ✅ Dados Cadastrados:
+- **42 Compras** registradas
+- **R$ 21.877,44** em gastos totais
+- **18 Fornecedores** diferentes
+- **1.097 Unidades** compradas
+- **386 Itens** sem categoria
 
-/* Vence em até 3 dias */
-.due-soon {
-  background: #fef3c7; /* yellow-100 */
-  border: #f59e0b;     /* yellow-500 */
-}
-
-/* Vence em 4+ dias */
-.due-later {
-  background: #dbeafe; /* blue-100 */
-  border: #3b82f6;     /* blue-500 */
-}
-
-/* Pago */
-.paid {
-  background: #dcfce7; /* green-100 */
-  border: #22c55e;     /* green-500 */
-}
-```
+### ⚠️ Recomendações:
+1. **Crie as 11 Categorias** na aba "Categorias" para melhor organização
+2. **Exporte os dados mensalmente** para acompanhar tendências
+3. **Use os filtros** para análises específicas (fornecedor, produto, período)
+4. **Mantenha backups** dos arquivos exportados
 
 ---
 
-## 📊 Fluxo de Dados
+## 📞 Precisa de Ajuda?
 
-```
-1. USUÁRIO FAZ UPLOAD
-   ↓
-2. ARQUIVO SALVO NO S3
-   ↓
-3. REGISTRO CRIADO NO DB (status: pending)
-   ↓
-4. OCR PROCESSADO COM GPT-4o
-   ↓
-5. DADOS EXTRAÍDOS E SALVOS NO DB
-   ↓
-6. BOLETO APARECE NA LISTA
-   ↓
-7. USUÁRIO MARCA COMO PAGO
-   ↓
-8. STATUS ATUALIZADO (pending → paid)
-```
+Se ainda tiver dúvidas:
+1. Revise este guia novamente
+2. Experimente fazer uma busca sem filtros primeiro
+3. Verifique se clicou no botão "Buscar" antes de procurar o botão "Exportar"
+4. Teste as diferentes abas e formatos de exportação
 
 ---
 
-## 🔐 Segurança
-
-- ✅ Arquivos armazenados em **AWS S3** privado
-- ✅ URLs assinadas com **expiração de 1 hora**
-- ✅ Validação de tipo e tamanho de arquivo
-- ✅ Dados sensíveis em **variáveis de ambiente**
-- ✅ Conexão com banco via **Supabase Session Pooler**
-
----
-
-## 🐛 Troubleshooting
-
-### Erro: "OCR falhou"
-**Possíveis causas:**
-- Arquivo com baixa qualidade
-- Formato não suportado
-- Boleto ilegível
-
-**Solução:**
-1. Verifique a qualidade da imagem/PDF
-2. Tente fazer novo upload
-3. Verifique se o arquivo não está corrompido
-
-### Erro: "Erro ao fazer upload"
-**Possíveis causas:**
-- Arquivo maior que 10MB
-- Formato não suportado
-- Problemas de conexão
-
-**Solução:**
-1. Reduza o tamanho do arquivo
-2. Converta para PDF, JPG ou PNG
-3. Verifique sua conexão
-
----
-
-## 📈 Roadmap
-
-### Versão Atual (v1.0)
-- ✅ Upload de boletos
-- ✅ OCR automático
-- ✅ Listagem com filtros
-- ✅ Marcar como pago
-- ✅ Estatísticas básicas
-
-### Próximas Versões
-- ⏳ Notificações de vencimento
-- ⏳ Relatórios em PDF
-- ⏳ Integração com bancos
-- ⏳ Pagamento online
-- ⏳ Histórico de pagamentos
-
----
-
-## 📞 Suporte
-
-**Aplicação:** https://controle-compras-res-d7yzxl.abacusai.app  
-**GitHub:** https://github.com/anabmoser/Controle-Financeiro-Abacus
-
----
-
-## 📝 Changelog
-
-### v1.0.1 - 05/12/2025
-**🐛 Correções:**
-- Corrigido erro 500 na rota `/api/bills/upcoming`
-- Corrigido erro 500 na rota `/api/bills/stats`
-- Adicionado `export const dynamic = 'force-dynamic'` para forçar renderização dinâmica
-- Aplicado deploy com correções
-
-**✅ Testes:**
-- Dashboard carregando corretamente
-- Página de boletos funcionando perfeitamente
-- Estatísticas sendo exibidas sem erros
-
-### v1.0.0 - 04/12/2025
-**🎉 Lançamento Inicial:**
-- Upload de boletos via drag & drop
-- OCR automático com GPT-4o
-- Dashboard com estatísticas
-- Filtros por status
-- Marcação de pagamento
-- Integração com AWS S3
-- Integração com Supabase
-
----
-
-**Desenvolvido com ❤️ para gestão financeira eficiente de restaurantes**
+**Documentação atualizada em:** 08/12/2025
+**Versão:** 1.0
+**Sistema:** Controle Financeiro - Restaurante
+**URL:** https://controle-compras-res-d7yzxl.abacusai.app/periodos
