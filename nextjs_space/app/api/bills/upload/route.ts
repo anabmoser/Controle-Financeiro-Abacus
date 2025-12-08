@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { uploadFile } from '@/lib/s3';
+import { uploadBillFile } from '@/lib/s3';
 
 export async function POST(request: Request) {
   try {
@@ -41,13 +41,11 @@ export async function POST(request: Request) {
     // Converter para Buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Gerar nome único para o arquivo
-    const timestamp = Date.now();
+    // Gerar nome único para o arquivo (sem prefixo 'bills/' pois já é adicionado pela função)
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `bills/${timestamp}-${sanitizedName}`;
 
-    // Upload para S3
-    const cloudStoragePath = await uploadFile(buffer, fileName);
+    // Upload para S3 usando função específica para boletos
+    const cloudStoragePath = await uploadBillFile(buffer, sanitizedName);
 
     // Criar registro no banco de dados
     const bill = await prisma.bill.create({

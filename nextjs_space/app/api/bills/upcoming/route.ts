@@ -36,9 +36,20 @@ export async function GET(request: NextRequest) {
       orderBy: { dueDate: 'asc' }
     });
 
+    // Converter BigInt para número antes de serializar
+    const serializedUpcoming = bills.map(bill => ({
+      ...bill,
+      fileSize: bill.fileSize ? Number(bill.fileSize) : null
+    }));
+
+    const serializedOverdue = overdue.map(bill => ({
+      ...bill,
+      fileSize: bill.fileSize ? Number(bill.fileSize) : null
+    }));
+
     return NextResponse.json({ 
-      upcoming: bills,
-      overdue,
+      upcoming: serializedUpcoming,
+      overdue: serializedOverdue,
       total: bills.length + overdue.length
     });
   } catch (error) {

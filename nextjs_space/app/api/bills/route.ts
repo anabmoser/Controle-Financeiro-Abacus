@@ -37,7 +37,13 @@ export async function GET(request: NextRequest) {
       orderBy: { dueDate: 'asc' }
     });
 
-    return NextResponse.json({ bills });
+    // Converter BigInt para número antes de serializar
+    const serializedBills = bills.map(bill => ({
+      ...bill,
+      fileSize: bill.fileSize ? Number(bill.fileSize) : null
+    }));
+
+    return NextResponse.json({ bills: serializedBills });
   } catch (error) {
     console.error('Erro ao buscar boletos:', error);
     return NextResponse.json(
@@ -72,7 +78,13 @@ export async function PUT(request: NextRequest) {
       data: updateData
     });
 
-    return NextResponse.json({ bill });
+    // Converter BigInt para número antes de serializar
+    const serializedBill = {
+      ...bill,
+      fileSize: bill.fileSize ? Number(bill.fileSize) : null
+    };
+
+    return NextResponse.json({ bill: serializedBill });
   } catch (error) {
     console.error('Erro ao atualizar boleto:', error);
     return NextResponse.json(

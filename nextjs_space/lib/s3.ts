@@ -10,8 +10,22 @@ import { createS3Client, getBucketConfig } from './aws-config'
 const s3Client = createS3Client()
 const { bucketName, folderPrefix } = getBucketConfig()
 
-export async function uploadFile(buffer: Buffer, fileName: string): Promise<string> {
+export async function uploadFile(buffer: Buffer, fileName: string, isPublic: boolean = false): Promise<string> {
   const key = `${folderPrefix}receipts/${Date.now()}-${fileName}`
+  
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: buffer,
+    ContentType: 'application/octet-stream',
+  })
+
+  await s3Client.send(command)
+  return key
+}
+
+export async function uploadBillFile(buffer: Buffer, fileName: string): Promise<string> {
+  const key = `${folderPrefix}bills/${Date.now()}-${fileName}`
   
   const command = new PutObjectCommand({
     Bucket: bucketName,
