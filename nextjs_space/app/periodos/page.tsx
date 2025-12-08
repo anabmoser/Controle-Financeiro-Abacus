@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,10 +40,81 @@ export default function PeriodosPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState('')
+  
+  // Estados para autocomplete
+  const [supplierSuggestions, setSupplierSuggestions] = useState<Array<{ name: string; count: number }>>([])
+  const [productSuggestions, setProductSuggestions] = useState<Array<{ name: string; count: number }>>([])
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false)
+  const [showProductDropdown, setShowProductDropdown] = useState(false)
+  const supplierInputRef = useRef<HTMLDivElement>(null)
+  const productInputRef = useRef<HTMLDivElement>(null)
+
+  // Buscar sugestões de fornecedores
+  useEffect(() => {
+    const fetchSupplierSuggestions = async () => {
+      if (supplier.length < 2) {
+        setSupplierSuggestions([])
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/suppliers/search?q=${encodeURIComponent(supplier)}`)
+        const result = await response.json()
+        setSupplierSuggestions(result.suppliers || [])
+        setShowSupplierDropdown(true)
+      } catch (error) {
+        console.error('Erro ao buscar fornecedores:', error)
+        setSupplierSuggestions([])
+      }
+    }
+
+    const timer = setTimeout(fetchSupplierSuggestions, 300)
+    return () => clearTimeout(timer)
+  }, [supplier])
+
+  // Buscar sugestões de produtos
+  useEffect(() => {
+    const fetchProductSuggestions = async () => {
+      if (productName.length < 2) {
+        setProductSuggestions([])
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/products/autocomplete?q=${encodeURIComponent(productName)}`)
+        const result = await response.json()
+        setProductSuggestions(result.products || [])
+        setShowProductDropdown(true)
+      } catch (error) {
+        console.error('Erro ao buscar produtos:', error)
+        setProductSuggestions([])
+      }
+    }
+
+    const timer = setTimeout(fetchProductSuggestions, 300)
+    return () => clearTimeout(timer)
+  }, [productName])
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (supplierInputRef.current && !supplierInputRef.current.contains(event.target as Node)) {
+        setShowSupplierDropdown(false)
+      }
+      if (productInputRef.current && !productInputRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSearch = async () => {
     setLoading(true)
     setError('')
+    setShowSupplierDropdown(false)
+    setShowProductDropdown(false)
 
     try {
       const params = new URLSearchParams()
@@ -181,21 +252,59 @@ export default function PeriodosPage() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
+              <div ref={supplierInputRef} className="relative">
                 <label className="text-sm font-medium mb-2 block">Fornecedor (opcional)</label>
                 <Input
-                  placeholder="Nome do fornecedor"
+                  placeholder="Digite para buscar fornecedor..."
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
+                  onFocus={() => supplier.length >= 2 && setShowSupplierDropdown(true)}
                 />
+                {showSupplierDropdown && supplierSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-950 border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {supplierSuggestions.map((s, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center"
+                        onClick={() => {
+                          setSupplier(s.name)
+                          setShowSupplierDropdown(false)
+                        }}
+                      >
+                        <span className="truncate">{s.name}</span>
+                        <Badge variant="secondary" className="ml-2">{s.count}×</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div>
+              <div ref={productInputRef} className="relative">
                 <label className="text-sm font-medium mb-2 block">Produto (opcional)</label>
                 <Input
-                  placeholder="Nome do produto"
+                  placeholder="Digite para buscar produto..."
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
+                  onFocus={() => productName.length >= 2 && setShowProductDropdown(true)}
                 />
+                {showProductDropdown && productSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-950 border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {productSuggestions.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center"
+                        onClick={() => {
+                          setProductName(p.name)
+                          setShowProductDropdown(false)
+                        }}
+                      >
+                        <span className="truncate">{p.name}</span>
+                        <Badge variant="secondary" className="ml-2">{p.count}×</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <Button onClick={handleSearch} disabled={loading} className="w-full md:w-auto">
