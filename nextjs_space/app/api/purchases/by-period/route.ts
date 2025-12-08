@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar compras
-    const purchases = await prisma.purchase.findMany({
+    const allPurchases = await prisma.purchase.findMany({
       where: whereClause,
       include: {
         purchaseItems: {
@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
         purchaseDate: 'desc',
       },
     })
+
+    // CORREÇÃO: Remover compras que ficaram sem itens após filtragem de produto/categoria
+    const purchases = allPurchases.filter(p => p.purchaseItems.length > 0)
 
     // Agregar dados
     const allItems = purchases.flatMap((p) =>
