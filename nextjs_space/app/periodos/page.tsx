@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from 'react'
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Search, Package, DollarSign, ShoppingCart, Users } from 'lucide-react'
+import { Calendar, Search, Package, DollarSign, ShoppingCart, Users, FileSpreadsheet, Download } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import {
   Table,
@@ -18,6 +17,20 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  exportToExcel,
+  exportToCSV,
+  formatComprasParaExportacao,
+  formatProdutosParaExportacao,
+  formatFornecedoresParaExportacao,
+  formatCategoriasParaExportacao,
+} from '@/lib/export-utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function PeriodosPage() {
   const [startDate, setStartDate] = useState('')
@@ -52,6 +65,83 @@ export default function PeriodosPage() {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Função para gerar nome de arquivo baseado nos filtros
+  const getFileName = (tipo: string) => {
+    const periodo = startDate && endDate 
+      ? `${startDate}_${endDate}` 
+      : startDate 
+      ? `desde_${startDate}` 
+      : endDate 
+      ? `ate_${endDate}`
+      : 'todos'
+    return `${tipo}_${periodo}`
+  }
+
+  // Handlers de exportação
+  const handleExportCompras = (format: 'excel' | 'csv') => {
+    if (!data || !data.compras || data.compras.length === 0) {
+      alert('Nenhum dado para exportar')
+      return
+    }
+    
+    const dadosFormatados = formatComprasParaExportacao(data.compras)
+    const filename = getFileName('compras')
+    
+    if (format === 'excel') {
+      exportToExcel(dadosFormatados, filename, 'Compras')
+    } else {
+      exportToCSV(dadosFormatados, filename)
+    }
+  }
+
+  const handleExportProdutos = (format: 'excel' | 'csv') => {
+    if (!data || !data.porProduto || data.porProduto.length === 0) {
+      alert('Nenhum dado para exportar')
+      return
+    }
+    
+    const dadosFormatados = formatProdutosParaExportacao(data.porProduto)
+    const filename = getFileName('produtos')
+    
+    if (format === 'excel') {
+      exportToExcel(dadosFormatados, filename, 'Produtos')
+    } else {
+      exportToCSV(dadosFormatados, filename)
+    }
+  }
+
+  const handleExportFornecedores = (format: 'excel' | 'csv') => {
+    if (!data || !data.porFornecedor || data.porFornecedor.length === 0) {
+      alert('Nenhum dado para exportar')
+      return
+    }
+    
+    const dadosFormatados = formatFornecedoresParaExportacao(data.porFornecedor)
+    const filename = getFileName('fornecedores')
+    
+    if (format === 'excel') {
+      exportToExcel(dadosFormatados, filename, 'Fornecedores')
+    } else {
+      exportToCSV(dadosFormatados, filename)
+    }
+  }
+
+  const handleExportCategorias = (format: 'excel' | 'csv') => {
+    if (!data || !data.porCategoria || data.porCategoria.length === 0) {
+      alert('Nenhum dado para exportar')
+      return
+    }
+    
+    const dadosFormatados = formatCategoriasParaExportacao(data.porCategoria)
+    const filename = getFileName('categorias')
+    
+    if (format === 'excel') {
+      exportToExcel(dadosFormatados, filename, 'Categorias')
+    } else {
+      exportToCSV(dadosFormatados, filename)
     }
   }
 
@@ -190,8 +280,26 @@ export default function PeriodosPage() {
               {/* Compras Tab */}
               <TabsContent value="compras">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Lista de Compras</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleExportCompras('excel')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar Excel (.xlsx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportCompras('csv')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar CSV
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -235,8 +343,26 @@ export default function PeriodosPage() {
               {/* Produtos Tab */}
               <TabsContent value="produtos">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Produtos Mais Comprados</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleExportProdutos('excel')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar Excel (.xlsx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportProdutos('csv')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar CSV
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardHeader>
                   <CardContent>
                     <Table>
@@ -278,8 +404,26 @@ export default function PeriodosPage() {
               {/* Fornecedores Tab */}
               <TabsContent value="fornecedores">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Fornecedores</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleExportFornecedores('excel')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar Excel (.xlsx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportFornecedores('csv')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar CSV
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardHeader>
                   <CardContent>
                     <Table>
@@ -315,8 +459,26 @@ export default function PeriodosPage() {
               {/* Categorias Tab */}
               <TabsContent value="categorias">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Por Categoria</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleExportCategorias('excel')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar Excel (.xlsx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportCategorias('csv')}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Exportar CSV
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
