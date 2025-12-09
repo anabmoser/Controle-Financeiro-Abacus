@@ -140,7 +140,7 @@ Retorne APENAS um objeto JSON válido com esta estrutura:
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos de timeout
 
-      const response = await fetch('https://apis.abacus.ai/v1/chat/completions', {
+      const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

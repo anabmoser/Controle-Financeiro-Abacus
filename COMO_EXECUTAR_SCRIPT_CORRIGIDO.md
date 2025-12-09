@@ -1,115 +1,80 @@
-# 🛑️ Como Executar o Script SQL em 2 Etapas
+# Como Corrigir o Erro de Conexão com Banco de Dados
 
-## ⚠️ Por Que 2 Etapas?
+## Problema Identificado
 
-O script anterior falhava porque tentava criar constraints em tabelas que ainda não tinham sido completamente recriadas. Para evitar isso, vamos executar em **2 etapas separadas**:
+O erro `MaxClientsInSessionMode: max clients reached` ocorre porque o Supabase Session Pooler (porta 5432) tem um limite baixo de conexões simultâneas.
 
-1. **ETAPA 1**: Limpar todas as tabelas antigas
-2. **ETAPA 2**: Criar as tabelas novas corretas
+## Solução
 
----
+### Opção 1: Usar Transaction Pooler (RECOMENDADO)
 
-# 🟦 ETAPA 1: Limpar Tudo
-
-## 1️⃣ Abrir o Arquivo
-
+**PASSO 1**: Edite o arquivo `.env` localizado em:
 ```
-ETAPA_1_LIMPAR_TUDO.sql
+/home/ubuntu/controle_compras_restaurante/nextjs_space/.env
 ```
 
-## 2️⃣ Copiar o Conteúdo
+**PASSO 2**: Altere a porta na linha `DATABASE_URL` de `5432` para `6543`:
 
-```sql
--- =============================================
--- ETAPA 1: LIMPAR TODAS AS TABELAS
--- =============================================
-
-DROP TABLE IF EXISTS "receipts" CASCADE;
-DROP TABLE IF EXISTS "purchase_items" CASCADE;
-DROP TABLE IF EXISTS "purchases" CASCADE;
-DROP TABLE IF EXISTS "products" CASCADE;
-DROP TABLE IF EXISTS "categories" CASCADE;
-DROP TABLE IF EXISTS "bills" CASCADE;
-DROP TABLE IF EXISTS "product_aliases" CASCADE;
-DROP TABLE IF EXISTS "suppliers" CASCADE;
+**ANTES:**
+```env
+DATABASE_URL='postgresql://postgres.ixyxegpijupehxykntck:iqAoMmmhV6b8Ls7D@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?pgbouncer=true'
 ```
 
-## 3️⃣ Executar no Supabase
-
-1. Acesse: https://supabase.com/dashboard/project/ixyxegpijupehxykntck
-2. Clique em **SQL Editor**
-3. Cole o script da ETAPA 1
-4. Clique em **RUN** (botão verde)
-5. Aguarde a mensagem: **✅ Success. No rows returned**
-
----
-
-# 🟩 ETAPA 2: Criar Tabelas Novas
-
-## ⚠️ **IMPORTANTE: Só execute após a ETAPA 1 ter sido concluída com sucesso!**
-
-## 1️⃣ Abrir o Arquivo
-
-```
-ETAPA_2_CRIAR_TABELAS.sql
+**DEPOIS:**
+```env
+DATABASE_URL='postgresql://postgres.ixyxegpijupehxykntck:iqAoMmmhV6b8Ls7D@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true'
 ```
 
-## 2️⃣ Copiar TODO o Conteúdo
+**PASSO 3**: Salve o arquivo
 
-Este arquivo é maior (152 linhas). Copie **TODO O CONTEÚDO** do arquivo.
-
-## 3️⃣ Executar no Supabase
-
-1. No mesmo **SQL Editor**
-2. **Limpe o editor** (delete o script da ETAPA 1)
-3. Cole o script da ETAPA 2
-4. Clique em **RUN** (botão verde)
-5. Aguarde a mensagem: **✅ Success. No rows returned**
-
----
-
-# 🔍 Verificar Sucesso
-
-Após executar as 2 etapas, confirme que tudo funcionou:
-
-```sql
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public'
-ORDER BY table_name;
+**PASSO 4**: Reinicie o servidor
+```bash
+cd /home/ubuntu/controle_compras_restaurante/nextjs_space
+yarn run dev
 ```
 
-**Resultado esperado (5 tabelas):**
-```
-✅ categories
-✅ products
-✅ purchase_items
-✅ purchases
-✅ receipts
+### Opção 2: Ajustar pool_size manualmente
+
+Adicione `&pool_size=20` ao final da URL:
+```env
+DATABASE_URL='postgresql://postgres.ixyxegpijupehxykntck:iqAoMmmhV6b8Ls7D@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?pgbouncer=true&pool_size=20'
 ```
 
----
+## O que mudou no código?
 
-# ✅ Próximos Passos
+Corrigimos o endpoint da API da Abacus.AI de:
+- ❌ `https://apis.abacus.ai/v1/chat/completions`
+- ✅ `https://apps.abacus.ai/v1/chat/completions`
 
-Quando você confirmar que as 5 tabelas foram criadas:
+Esta correção resolve o erro "fetch failed" que estava impedindo o OCR de funcionar.
 
-1. ✅ Me avise
-2. ✅ Farei o teste de conexão
-3. ✅ Validarei todas as funcionalidades
-4. ✅ Deploy final em produção
-5. ✅ App 100% operacional! 🎉
+## Testando a Solução
 
----
+Após fazer a alteração, você pode testar o OCR executando:
+```bash
+cd /home/ubuntu/controle_compras_restaurante/nextjs_space
+node test_api_corrected.js
+```
 
-# 🆘 Se Houver Erro
+Deve retornar:
+```
+✅ SUCESSO! Resposta da API: OK
+```
 
-Se qualquer uma das etapas falhar:
+## Notas Importantes
 
-1. Tire um print da tela
-2. Me envie o print
-3. Vou diagnosticar e corrigir
+1. **Transaction Pooler vs Session Pooler:**
+   - Transaction Pooler (porta 6543): Suporta mais conexões (até 200)
+   - Session Pooler (porta 5432): Limite de 5-10 conexões
 
----
+2. **O OCR agora está corrigido** e deve processar boletos automaticamente
 
-**Aguardando sua confirmação! 🚀**
+3. **Todos os boletos com erro** podem ser reprocessados clicando no botão de reprocessar na interface
+
+## Próximos Passos
+
+Depois de fazer a alteração no `.env`, o sistema estará pronto para:
+- ✅ Upload de boletos (PDF, JPG, PNG)
+- ✅ Extração automática de dados via OCR
+- ✅ Registro completo de informações (fornecedor, valor, vencimento)
+- ✅ Dashboard com estatísticas de pagamentos

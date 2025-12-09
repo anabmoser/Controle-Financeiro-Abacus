@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Clock, Download, Trash2, Calendar } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Clock, Download, Trash2, Calendar, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -150,6 +150,32 @@ export default function BillsPage() {
       await loadBills();
     } catch (error: any) {
       setError(error.message);
+    }
+  }
+
+  async function handleRetryOCR(billId: string) {
+    try {
+      setProcessing(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await fetch('/api/bills/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao reprocessar OCR');
+      }
+
+      setSuccess('OCR reprocessado com sucesso!');
+      await loadBills();
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setProcessing(false);
     }
   }
 
@@ -416,15 +442,29 @@ export default function BillsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(bill.fileUrl, '_blank')}
+                        title="Baixar arquivo"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
-                      {bill.status === 'pending' && (
+                      {bill.ocrStatus === 'error' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRetryOCR(bill.id)}
+                          className="text-blue-600 hover:text-blue-700"
+                          disabled={processing}
+                          title="Reprocessar OCR"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${processing ? 'animate-spin' : ''}`} />
+                        </Button>
+                      )}
+                      {bill.status === 'pending' && bill.ocrStatus !== 'error' && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleMarkAsPaid(bill.id)}
                           className="text-green-600 hover:text-green-700"
+                          title="Marcar como pago"
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>
@@ -434,6 +474,7 @@ export default function BillsPage() {
                         size="sm"
                         onClick={() => handleDelete(bill.id)}
                         className="text-red-600 hover:text-red-700"
+                        title="Excluir boleto"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
