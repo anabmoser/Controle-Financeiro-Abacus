@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { downloadFile } from '@/lib/s3';
+import { getFileBuffer } from '@/lib/s3';
 
 const ABACUS_API_KEY = process.env.ABACUSAI_API_KEY;
 
 export async function POST(request: Request) {
+  let billId: string | null = null;
+  
   try {
-    const { billId } = await request.json();
+    const body = await request.json();
+    billId = body.billId;
 
     if (!billId) {
       return NextResponse.json(
@@ -33,11 +36,16 @@ export async function POST(request: Request) {
       data: { ocrStatus: 'processing' }
     });
 
-    // Obter URL do arquivo
-    const fileUrl = await downloadFile(bill.fileUrl);
+    // Obter arquivo do S3 como buffer
+    const fileBuffer = await getFileBuffer(bill.fileUrl);
+    
+    // Converter para base64
+    const base64Image = fileBuffer.toString('base64');
+    const mimeType = bill.fileType || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
     // Processar com GPT-4o Vision
-    const ocrResult = await processOCR(fileUrl);
+    const ocrResult = await processOCR(dataUrl);
 
     // Atualizar boleto com dados extraídos
     const updatedBill = await prisma.bill.update({
@@ -58,22 +66,28 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      bill: updatedBill,
+      bill: {
+        ...updatedBill,
+        fileSize: updatedBill.fileSize ? Number(updatedBill.fileSize) : null
+      },
       message: 'OCR processado com sucesso'
     });
   } catch (error: any) {
     console.error('Erro no processamento OCR:', error);
 
     // Atualizar status de erro
-    const { billId } = await request.json();
     if (billId) {
-      await prisma.bill.update({
-        where: { id: billId },
-        data: {
-          ocrStatus: 'error',
-          ocrError: error.message || 'Erro desconhecido'
-        }
-      });
+      try {
+        await prisma.bill.update({
+          where: { id: billId },
+          data: {
+            ocrStatus: 'error',
+            ocrError: error.message || 'Erro desconhecido'
+          }
+        });
+      } catch (updateError) {
+        console.error('Erro ao atualizar status de erro:', updateError);
+      }
     }
 
     return NextResponse.json(

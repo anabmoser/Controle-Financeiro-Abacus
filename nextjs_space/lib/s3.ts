@@ -48,6 +48,25 @@ export async function downloadFile(key: string): Promise<string> {
   return signedUrl
 }
 
+export async function getFileBuffer(key: string): Promise<Buffer> {
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+  })
+
+  const response = await s3Client.send(command)
+  
+  // Converter o stream para buffer
+  const stream = response.Body as any
+  const chunks: Uint8Array[] = []
+  
+  for await (const chunk of stream) {
+    chunks.push(chunk)
+  }
+  
+  return Buffer.concat(chunks)
+}
+
 export async function deleteFile(key: string): Promise<void> {
   const command = new DeleteObjectCommand({
     Bucket: bucketName,
