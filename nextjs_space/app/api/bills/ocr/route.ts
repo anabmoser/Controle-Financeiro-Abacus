@@ -130,57 +130,87 @@ Retorne APENAS um objeto JSON válido com esta estrutura:
   "issueDate": "YYYY-MM-DD ou null"
 }`;
 
-  try {
-    const response = await fetch('https://apis.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ABACUS_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: imageUrl } }
-            ]
-          }
-        ],
-        temperature: 0.0,
-        max_tokens: 1000
-      })
-    });
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[OCR] Tentativa ${attempt}/${maxRetries}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos de timeout
+
+      const response = await fetch('https://apis.abacus.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ABACUS_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          temperature: 0.0,
+          max_tokens: 1000
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API retornou status ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('API retornou resposta vazia');
+      }
+
+      // Extrair JSON da resposta
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Não foi possível extrair JSON da resposta da API');
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
+
+      // Validações básicas
+      if (!result.supplierName && !result.totalAmount) {
+        throw new Error('Não foi possível extrair dados essenciais do boleto');
+      }
+
+      console.log(`[OCR] Sucesso na tentativa ${attempt}`);
+      return result;
+      
+    } catch (error: any) {
+      lastError = error;
+      console.error(`[OCR] Erro na tentativa ${attempt}:`, error.message);
+      
+      // Se for timeout ou erro de rede, espera antes de tentar novamente
+      if (attempt < maxRetries && (error.name === 'AbortError' || error.message.includes('fetch failed'))) {
+        const waitTime = attempt * 2000; // 2s, 4s, 6s
+        console.log(`[OCR] Aguardando ${waitTime}ms antes de tentar novamente...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // Se não for erro de rede ou já esgotou as tentativas, lança o erro
+      if (attempt === maxRetries) {
+        throw new Error(`Falha após ${maxRetries} tentativas: ${error.message}`);
+      }
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Resposta vazia da API');
-    }
-
-    // Extrair JSON da resposta
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Não foi possível extrair JSON da resposta');
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
-
-    // Validações básicas
-    if (!result.supplierName && !result.totalAmount) {
-      throw new Error('Não foi possível extrair dados essenciais do boleto');
-    }
-
-    return result;
-  } catch (error: any) {
-    console.error('Erro no processamento OCR:', error);
-    throw new Error(`Falha no OCR: ${error.message}`);
   }
+
+  throw lastError || new Error('Falha desconhecida no OCR');
 }
