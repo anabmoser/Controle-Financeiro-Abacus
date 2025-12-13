@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
       data: {
         supplierName: ocrData?.supplierName || 'Fornecedor Desconhecido',
         supplierCnpj: ocrData?.supplierCnpj,
-        purchaseDate: new Date(ocrData?.purchaseDate || Date.now()),
+        // Força data para timezone brasileiro (UTC-3) para evitar conversão incorreta
+        purchaseDate: ocrData?.purchaseDate 
+          ? new Date(ocrData.purchaseDate + 'T12:00:00-03:00') 
+          : new Date(new Date().toISOString().split('T')[0] + 'T12:00:00-03:00'),
         totalAmount: ocrData?.totalAmount || 0,
         paymentMethod: ocrData?.paymentMethod,
         status: 'completed',
