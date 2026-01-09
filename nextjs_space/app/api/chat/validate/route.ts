@@ -108,7 +108,9 @@ Responda sempre em português brasileiro.`
     })
 
     if (!response.ok) {
-      throw new Error('Erro na chamada da API LLM')
+      const errorText = await response.text()
+      console.error('❌ Erro da API LLM (Chat):', errorText)
+      throw new Error(`Erro na chamada da API LLM: ${response.status} - ${errorText}`)
     }
 
     // Criar stream para o cliente

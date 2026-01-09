@@ -72,6 +72,12 @@ function ChatValidacaoContent() {
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ Erro na resposta do chat:', errorData)
+        throw new Error(errorData.error || 'Erro ao iniciar chat')
+      }
+
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let aiMessage = ''
@@ -105,9 +111,15 @@ function ChatValidacaoContent() {
           }
         }
       }
-    } catch (error) {
-      console.error('Erro ao iniciar chat:', error)
-      toast.error('Erro ao iniciar validação')
+    } catch (error: any) {
+      console.error('❌ Erro ao iniciar chat:', error)
+      
+      // Mostrar mensagem específica se for erro de créditos
+      if (error.message?.includes('no remaining credits')) {
+        toast.error('⚠️ Sem créditos para o chat. Os dados foram extraídos e estão disponíveis à direita.')
+      } else {
+        toast.error('Chat indisponível no momento. Use os dados extraídos no painel à direita.')
+      }
     }
   }
 
