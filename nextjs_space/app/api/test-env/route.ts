@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 
+// Build: 2026-01-09 20:50 - Forçar deploy v2
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const apiKey = process.env.ABACUSAI_API_KEY || 'NOT_FOUND'
   const last6 = apiKey.slice(-6)
+  const buildVersion = 'v2-2026-01-09-2050'
   
-  // Testar se a API Key funciona
+  // Testar se a API Key funciona (usando gpt-4o-mini - mais barato)
   let testResult = 'NOT_TESTED'
   try {
     const testResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
@@ -16,9 +18,9 @@ export async function GET() {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{role: 'user', content: 'test'}],
-        max_tokens: 5
+        model: 'gpt-4o-mini',
+        messages: [{role: 'user', content: 'OK'}],
+        max_tokens: 3
       })
     })
     
@@ -35,6 +37,7 @@ export async function GET() {
   return NextResponse.json({
     hasKey: !!process.env.ABACUSAI_API_KEY,
     keyEnding: `...${last6}`,
+    buildVersion,
     timestamp: new Date().toISOString(),
     testResult
   })
