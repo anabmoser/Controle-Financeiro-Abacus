@@ -141,13 +141,22 @@ Se não vê produtos claramente, retorne:
 
 // Função para processar documento com LLM
 // Usa GPT-4o - melhor modelo disponível na API Abacus.AI para OCR e visão
+// Build v4: 2026-01-10 - Debug logging
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
+  // DEBUG: Logar informações da API Key
+  const apiKey = process.env.ABACUSAI_API_KEY || ''
+  const keyLast6 = apiKey.slice(-6)
+  const keyLength = apiKey.length
+  console.log(`🔑 OCR API Key: length=${keyLength}, ends=...${keyLast6}`)
+  
   try {
     // Baixar arquivo
     const signedUrl = await downloadFile(fileUrl)
+    console.log(`📥 Baixando arquivo: ${fileUrl.substring(0, 50)}...`)
     const response = await fetch(signedUrl)
     const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+    console.log(`📦 Arquivo baixado: ${buffer.length} bytes`)
     const base64 = buffer.toString('base64')
 
     // Para PDFs, enviar como file data; para imagens, como image_url
@@ -318,24 +327,32 @@ Retorne APENAS o JSON válido, sem texto adicional.`
     ]
 
     // Chamar LLM API
+    const currentApiKey = process.env.ABACUSAI_API_KEY || ''
+    console.log(`🚀 Chamando LLM API com key ...${currentApiKey.slice(-6)}, tamanho base64: ${base64.length} chars`)
+    
+    const requestBody = {
+      model: 'gpt-4o',
+      messages,
+      max_tokens: 4000,
+      temperature: 0.0,  // Zero para evitar criatividade/alucinação
+      response_format: { type: 'json_object' },
+    }
+    
     const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
+        Authorization: `Bearer ${currentApiKey}`,
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
-        max_tokens: 4000,
-        temperature: 0.0,  // Zero para evitar criatividade/alucinação
-        response_format: { type: 'json_object' },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    console.log(`📡 LLM Response status: ${llmResponse.status}`)
+    
     if (!llmResponse.ok) {
       const errorText = await llmResponse.text()
-      console.error('Erro LLM API:', errorText)
+      console.error(`❌ Erro LLM API (status ${llmResponse.status}):`, errorText)
+      console.error(`❌ API Key usada: ...${currentApiKey.slice(-6)}`)
       throw new Error(`Erro na chamada da API LLM: ${llmResponse.status} - ${errorText}`)
     }
 
