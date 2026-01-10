@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const apiKey = process.env.ABACUSAI_API_KEY || 'NOT_FOUND'
   const last6 = apiKey.slice(-6)
-  const buildVersion = 'v2-2026-01-09-2050'
+  const buildVersion = 'v3-2026-01-09-2100'
   
   // Testar se a API Key funciona (usando gpt-4o-mini - mais barato)
   let testResult = 'NOT_TESTED'
