@@ -18,3 +18,8 @@ out
 .deploy
 .logs
 *.tsbuildinfo
+
+# Secrets - never commit
+nextjs_space/.env
+*.swp
+*.nfs*
