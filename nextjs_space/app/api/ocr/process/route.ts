@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { downloadFile } from '@/lib/s3'
+import { downloadFile } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,11 +95,11 @@ Se não vê produtos claramente, retorne:
     },
   ]
 
-  const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
       model: 'gpt-4o',
@@ -144,7 +144,7 @@ Se não vê produtos claramente, retorne:
 // Build v4: 2026-01-10 - Debug logging
 async function processDocumentWithLLM(fileUrl: string, fileType: string) {
   // DEBUG: Logar informações da API Key
-  const apiKey = process.env.ABACUSAI_API_KEY || ''
+  const apiKey = process.env.OPENAI_API_KEY || ''
   const keyLast6 = apiKey.slice(-6)
   const keyLength = apiKey.length
   console.log(`🔑 OCR API Key: length=${keyLength}, ends=...${keyLast6}`)
@@ -327,7 +327,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
     ]
 
     // Chamar LLM API
-    const currentApiKey = process.env.ABACUSAI_API_KEY || ''
+    const currentApiKey = process.env.OPENAI_API_KEY || ''
     console.log(`🚀 Chamando LLM API com key ...${currentApiKey.slice(-6)}, tamanho base64: ${base64.length} chars`)
     
     const requestBody = {
@@ -338,7 +338,7 @@ Retorne APENAS o JSON válido, sem texto adicional.`
       response_format: { type: 'json_object' },
     }
     
-    const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+    const llmResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

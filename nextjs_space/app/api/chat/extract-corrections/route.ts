@@ -63,11 +63,11 @@ REGRAS IMPORTANTES:
 RESPONDA APENAS COM O JSON, SEM MARKDOWN OU EXPLICAÇÕES ADICIONAIS.`
 
     // Chamar API da Abacus.AI
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { uploadBillFile } from '@/lib/s3';
+import { uploadBillFile } from '@/lib/storage';
 
 export async function POST(request: Request) {
   try {

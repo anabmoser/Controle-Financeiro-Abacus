@@ -43,9 +43,9 @@ export async function categorizeProduct(
   }
 
   try {
-    const apiKey = process.env.ABACUSAI_API_KEY
+    const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      console.error('ABACUSAI_API_KEY não configurada')
+      console.error('OPENAI_API_KEY não configurada')
       return { categoryId: null, categoryName: null, confidence: 0 }
     }
 
@@ -80,7 +80,7 @@ REGRAS:
 
 RESPONDA APENAS COM O NÚMERO DA CATEGORIA:`
 
-    const response = await fetch('https://api.abacus.ai/chat/complete', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
